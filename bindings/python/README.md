@@ -1,14 +1,11 @@
-# flutmax-py
+# flutmax
 
-Python bindings for flutmax (.flutmax <-> .maxpat transpiler).
-
-Part of the [flutmax](https://github.com/nordsound/flutmax) workspace.
+Python bindings for the [flutmax](https://github.com/nordsound/flutmax) transpiler — convert between `.flutmax` text and Max/MSP `.maxpat` patches.
 
 ## Install
 
 ```bash
-pip install maturin
-maturin develop --release
+pip install flutmax
 ```
 
 ## Usage
@@ -17,15 +14,16 @@ maturin develop --release
 import flutmax_py
 
 # Compile .flutmax source to .maxpat JSON
-maxpat = flutmax_py.compile("out audio: signal;\nwire osc = cycle~(440);\nout[0] = osc;")
+maxpat = flutmax_py.compile("wire osc = cycle~(440);\nout audio: signal = osc;")
 
 # Decompile .maxpat JSON to .flutmax source
 source = flutmax_py.decompile(maxpat)
 
 # Parse to AST JSON
-ast = flutmax_py.parse("wire osc = cycle~(440);")
+import json
+ast = json.loads(flutmax_py.parse("wire osc = cycle~(440);"))
 ```
 
 ## License
 
-MIT
+MIT — see [LICENSE](https://github.com/nordsound/flutmax/blob/main/LICENSE)

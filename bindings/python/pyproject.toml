@@ -6,6 +6,7 @@ build-backend = "maturin"
 name = "flutmax"
 version = "0.1.0"
 description = "Transpiler between .flutmax text and Max/MSP .maxpat patches"
+readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.8"
 classifiers = [
