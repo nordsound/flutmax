@@ -3,14 +3,12 @@
 /// Converts `Program` (AST) to `PatchGraph`.
 /// Each InDecl/OutDecl/Wire/OutAssignment is converted to corresponding nodes and edges,
 /// then `insert_triggers()` auto-inserts triggers for fanouts.
-
 use std::collections::{HashMap, HashSet};
 
 #[allow(unused_imports)] // CallArg used in tests
 use flutmax_ast::{
     CallArg, DestructuringWire, DirectConnection, Expr, FeedbackAssignment, FeedbackDecl, InDecl,
-    LitValue, MsgDecl, OutAssignment, OutDecl, PortType, Program, StateAssignment,
-    StateDecl, Wire,
+    LitValue, MsgDecl, OutAssignment, OutDecl, PortType, Program, StateAssignment, StateDecl, Wire,
 };
 use flutmax_objdb::{InletSpec, ObjectDb, OutletSpec};
 use flutmax_sema::graph::{NodePurity, PatchEdge, PatchGraph, PatchNode};
@@ -33,11 +31,20 @@ pub enum BuildError {
     /// E006: destructuring LHS count does not match RHS outlet count
     DestructuringCountMismatch { expected: usize, got: usize },
     /// E009: Abstraction argument count does not match in_ports count
-    AbstractionArgCountMismatch { name: String, expected: usize, got: usize },
+    AbstractionArgCountMismatch {
+        name: String,
+        expected: usize,
+        got: usize,
+    },
     /// E013: multiple assignments to the same feedback variable
     DuplicateFeedbackAssignment(String),
     /// E007: port index out of range
-    InvalidPortIndex { node: String, port: String, index: u32, max: u32 },
+    InvalidPortIndex {
+        node: String,
+        port: String,
+        index: u32,
+        max: u32,
+    },
     /// E020: bare reference to multi-outlet node (.out[N] required)
     BareMultiOutletRef { name: String, num_outlets: u32 },
     /// E019: multiple assignments to the same state
@@ -61,7 +68,11 @@ impl std::fmt::Display for BuildError {
                     expected, got
                 )
             }
-            BuildError::AbstractionArgCountMismatch { name, expected, got } => {
+            BuildError::AbstractionArgCountMismatch {
+                name,
+                expected,
+                got,
+            } => {
                 write!(
                     f,
                     "E009: abstraction '{}' expects {} arguments, got {}",
@@ -71,7 +82,12 @@ impl std::fmt::Display for BuildError {
             BuildError::DuplicateFeedbackAssignment(name) => {
                 write!(f, "E013: duplicate feedback assignment to '{}'", name)
             }
-            BuildError::InvalidPortIndex { node, port, index, max } => {
+            BuildError::InvalidPortIndex {
+                node,
+                port,
+                index,
+                max,
+            } => {
                 write!(
                     f,
                     "E007: port index out of range: {}.{}[{}] (max: {})",
@@ -113,7 +129,11 @@ impl std::fmt::Display for BuildWarning {
                 inlet,
                 count,
             } => {
-                write!(f, "W001: {} connections to {}.in[{}]", count, node_id, inlet)
+                write!(
+                    f,
+                    "W001: {} connections to {}.in[{}]",
+                    count, node_id, inlet
+                )
             }
         }
     }
@@ -195,7 +215,8 @@ impl<'a> GraphBuilder<'a> {
             args: vec![],
             num_inlets,
             num_outlets: 1,
-            is_signal, varname: None,
+            is_signal,
+            varname: None,
             hot_inlets: default_hot_inlets(object_name, num_inlets),
             purity: classify_purity(object_name),
             attrs: vec![],
@@ -217,7 +238,8 @@ impl<'a> GraphBuilder<'a> {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal, varname: None,
+            is_signal,
+            varname: None,
             hot_inlets: default_hot_inlets(object_name, 1),
             purity: classify_purity(object_name),
             attrs: vec![],
@@ -239,7 +261,7 @@ impl<'a> GraphBuilder<'a> {
             id: id.clone(),
             object_name: "message".to_string(),
             args: vec![decl.content.clone()],
-            num_inlets: 2,  // inlet 0 = hot (bang/message), inlet 1 = cold (set)
+            num_inlets: 2, // inlet 0 = hot (bang/message), inlet 1 = cold (set)
             num_outlets: 1,
             is_signal: false,
             varname: Some(decl.name.clone()),
@@ -256,7 +278,7 @@ impl<'a> GraphBuilder<'a> {
     fn add_wire(&mut self, wire: &Wire) -> Result<(), BuildError> {
         // For Tuples, record each element's type argument (for propagation during destructuring)
         if let Expr::Tuple(elements) = &wire.value {
-            let type_args: Vec<String> = elements.iter().map(|e| infer_pack_type_arg(e)).collect();
+            let type_args: Vec<String> = elements.iter().map(infer_pack_type_arg).collect();
             self.tuple_type_args.insert(wire.name.clone(), type_args);
         }
 
@@ -329,7 +351,7 @@ impl<'a> GraphBuilder<'a> {
                     // Named argument → resolve inlet index from objdb or AbstractionRegistry;
                     // positional argument → use index directly.
                     let inlet_idx = if let Some(ref name) = arg.name {
-                        resolve_inlet_name(&max_name, name, self.objdb)
+                        resolve_inlet_name(max_name, name, self.objdb)
                             .or_else(|| resolve_abstraction_inlet_name(object, name, self.registry))
                             .unwrap_or(i as u32)
                     } else {
@@ -412,15 +434,12 @@ impl<'a> GraphBuilder<'a> {
                         .max()
                         .unwrap_or(0);
                     let from_args = args.len() as u32;
-                    let inlets = std::cmp::max(
-                        std::cmp::max(max_from_refs, from_args),
-                        num_in,
-                    );
+                    let inlets = std::cmp::max(std::cmp::max(max_from_refs, from_args), num_in);
                     (inlets, num_out, sig)
                 } else {
                     // Normal Max object
                     let inlet_count = if ref_connections.is_empty() && lit_args.is_empty() {
-                        infer_num_inlets(&max_name, &lit_args, self.objdb)
+                        infer_num_inlets(max_name, &lit_args, self.objdb)
                     } else {
                         let max_from_refs = ref_connections
                             .iter()
@@ -430,10 +449,10 @@ impl<'a> GraphBuilder<'a> {
                         let from_args = args.len() as u32;
                         std::cmp::max(
                             std::cmp::max(max_from_refs, from_args),
-                            infer_num_inlets(&max_name, &lit_args, self.objdb),
+                            infer_num_inlets(max_name, &lit_args, self.objdb),
                         )
                     };
-                    let outlet_count = infer_num_outlets(&max_name, &lit_args, self.objdb);
+                    let outlet_count = infer_num_outlets(max_name, &lit_args, self.objdb);
                     (inlet_count, outlet_count, is_signal)
                 };
 
@@ -451,7 +470,8 @@ impl<'a> GraphBuilder<'a> {
                     args: lit_args.clone(),
                     num_inlets: max_inlet,
                     num_outlets,
-                    is_signal, varname: None,
+                    is_signal,
+                    varname: None,
                     hot_inlets: default_hot_inlets(&object_name, max_inlet),
                     purity: classify_purity(&object_name),
                     attrs: vec![],
@@ -545,7 +565,8 @@ impl<'a> GraphBuilder<'a> {
                     args: type_args,
                     num_inlets: num_elements,
                     num_outlets: 1,
-                    is_signal: false, varname: None,
+                    is_signal: false,
+                    varname: None,
                     hot_inlets: default_hot_inlets("pack", num_elements),
                     purity: classify_purity("pack"),
                     attrs: vec![],
@@ -590,7 +611,10 @@ impl<'a> GraphBuilder<'a> {
         if let Some(node) = resolved_node {
             let outlet_count = node.num_outlets;
             // If default value is 1, treat as unknown and skip
-            let is_known = outlet_count != 1 || node.object_name == "unpack" || node.object_name == "inlet" || node.object_name == "inlet~";
+            let is_known = outlet_count != 1
+                || node.object_name == "unpack"
+                || node.object_name == "inlet"
+                || node.object_name == "inlet~";
             if is_known && outlet_count != num_names {
                 return Err(BuildError::DestructuringCountMismatch {
                     expected: outlet_count as usize,
@@ -619,7 +643,8 @@ impl<'a> GraphBuilder<'a> {
                 args: type_args,
                 num_inlets: 1,
                 num_outlets: num_names,
-                is_signal: false, varname: None,
+                is_signal: false,
+                varname: None,
                 hot_inlets: default_hot_inlets("unpack", 1),
                 purity: classify_purity("unpack"),
                 attrs: vec![],
@@ -659,15 +684,13 @@ impl<'a> GraphBuilder<'a> {
     fn lookup_tuple_type_args(&self, value: &Expr, num_names: u32) -> Vec<String> {
         let source_name = match value {
             Expr::Ref(name) => Some(name.as_str()),
-            Expr::Call { object, args } if object == "unpack" => {
-                args.first().and_then(|arg| {
-                    if let Expr::Ref(name) = &arg.value {
-                        Some(name.as_str())
-                    } else {
-                        None
-                    }
-                })
-            }
+            Expr::Call { object, args } if object == "unpack" => args.first().and_then(|arg| {
+                if let Expr::Ref(name) = &arg.value {
+                    Some(name.as_str())
+                } else {
+                    None
+                }
+            }),
             _ => None,
         };
         if let Some(name) = source_name {
@@ -695,14 +718,16 @@ impl<'a> GraphBuilder<'a> {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: true, varname: None,
+            is_signal: true,
+            varname: None,
             hot_inlets: default_hot_inlets("tapin~", 1),
             purity: classify_purity("tapin~"),
             attrs: vec![],
             code: None,
         };
         self.graph.add_node(node);
-        self.feedback_map.insert(decl.name.clone(), tapin_id.clone());
+        self.feedback_map
+            .insert(decl.name.clone(), tapin_id.clone());
         // Map tapin~ outlet 0 to the feedback name
         // When fb is referenced in tapout~(fb, 500), an edge from tapin~ outlet 0 -> tapout~ inlet 0 is created
         self.name_map.insert(decl.name.clone(), (tapin_id, 0));
@@ -715,7 +740,9 @@ impl<'a> GraphBuilder<'a> {
     fn add_feedback_assignment(&mut self, assign: &FeedbackAssignment) -> Result<(), BuildError> {
         // E013: Duplicate assignment check
         if !self.assigned_feedbacks.insert(assign.target.clone()) {
-            return Err(BuildError::DuplicateFeedbackAssignment(assign.target.clone()));
+            return Err(BuildError::DuplicateFeedbackAssignment(
+                assign.target.clone(),
+            ));
         }
 
         let (source_id, source_outlet) = self.resolve_expr(&assign.value)?;
@@ -744,16 +771,22 @@ impl<'a> GraphBuilder<'a> {
         let id = self.gen_id();
 
         let (object_name, init_arg) = match decl.port_type {
-            PortType::Int => ("int".to_string(), match &decl.init_value {
-                Expr::Lit(LitValue::Int(v)) => v.to_string(),
-                Expr::Lit(LitValue::Float(v)) => format!("{}", *v as i64),
-                _ => "0".to_string(),
-            }),
-            PortType::Float => ("float".to_string(), match &decl.init_value {
-                Expr::Lit(LitValue::Float(v)) => format_lit(&LitValue::Float(*v)),
-                Expr::Lit(LitValue::Int(v)) => format!("{}.", v),
-                _ => "0.".to_string(),
-            }),
+            PortType::Int => (
+                "int".to_string(),
+                match &decl.init_value {
+                    Expr::Lit(LitValue::Int(v)) => v.to_string(),
+                    Expr::Lit(LitValue::Float(v)) => format!("{}", *v as i64),
+                    _ => "0".to_string(),
+                },
+            ),
+            PortType::Float => (
+                "float".to_string(),
+                match &decl.init_value {
+                    Expr::Lit(LitValue::Float(v)) => format_lit(&LitValue::Float(*v)),
+                    Expr::Lit(LitValue::Int(v)) => format!("{}.", v),
+                    _ => "0.".to_string(),
+                },
+            ),
             // Use int as fallback for Bang, List, Symbol
             _ => ("int".to_string(), "0".to_string()),
         };
@@ -762,11 +795,11 @@ impl<'a> GraphBuilder<'a> {
             id: id.clone(),
             object_name: object_name.clone(),
             args: vec![init_arg],
-            num_inlets: 2,  // inlet 0 = hot (bang/output), inlet 1 = cold (set value)
+            num_inlets: 2, // inlet 0 = hot (bang/output), inlet 1 = cold (set value)
             num_outlets: 1,
             is_signal: false,
             varname: Some(decl.name.clone()),
-            hot_inlets: vec![true, false],  // inlet 0 hot, inlet 1 cold
+            hot_inlets: vec![true, false], // inlet 0 hot, inlet 1 cold
             purity: classify_purity(&object_name),
             attrs: vec![],
             code: None,
@@ -803,7 +836,7 @@ impl<'a> GraphBuilder<'a> {
             source_id,
             source_outlet,
             dest_id: state_node_id,
-            dest_inlet: 1,  // cold inlet for value update
+            dest_inlet: 1, // cold inlet for value update
             is_feedback: false,
             order: None,
         });
@@ -870,28 +903,24 @@ fn infer_pack_type_arg(expr: &Expr) -> String {
 fn classify_purity(object_name: &str) -> NodePurity {
     match object_name {
         // Signal objects are generally Pure (with exceptions)
-        name if name.ends_with('~') => {
-            match name {
-                "tapin~" | "tapout~" | "line~" | "delay~" | "phasor~"
-                | "count~" | "index~" | "buffer~" | "groove~" | "play~"
-                | "record~" | "sfplay~" | "sfrecord~" | "sig~" => NodePurity::Stateful,
-                _ => NodePurity::Pure,
+        name if name.ends_with('~') => match name {
+            "tapin~" | "tapout~" | "line~" | "delay~" | "phasor~" | "count~" | "index~"
+            | "buffer~" | "groove~" | "play~" | "record~" | "sfplay~" | "sfrecord~" | "sig~" => {
+                NodePurity::Stateful
             }
-        }
+            _ => NodePurity::Pure,
+        },
         // Known stateful Control objects
-        "pack" | "unpack" | "int" | "float" | "toggle" | "gate" | "counter"
-        | "message" | "zl" | "coll" | "dict" | "regexp" | "value"
-        | "table" | "funbuff" | "bag" | "borax" | "bucket" | "histo"
-        | "mousestate" | "spray" | "switch" | "if" | "expr" | "vexpr"
-        | "button" | "number" | "flonum" | "slider" | "dial" | "umenu"
-        | "preset" | "pattr" | "autopattr" | "pattrstorage" => NodePurity::Stateful,
+        "pack" | "unpack" | "int" | "float" | "toggle" | "gate" | "counter" | "message" | "zl"
+        | "coll" | "dict" | "regexp" | "value" | "table" | "funbuff" | "bag" | "borax"
+        | "bucket" | "histo" | "mousestate" | "spray" | "switch" | "if" | "expr" | "vexpr"
+        | "button" | "number" | "flonum" | "slider" | "dial" | "umenu" | "preset" | "pattr"
+        | "autopattr" | "pattrstorage" => NodePurity::Stateful,
         // Known pure Control objects
-        "+" | "-" | "*" | "/" | "%" | "trigger" | "t" | "route" | "select"
-        | "prepend" | "append" | "stripnote" | "makenote"
-        | "scale" | "split" | "swap" | "clip" | "minimum" | "maximum"
-        | "inlet" | "inlet~" | "outlet" | "outlet~"
-        | "loadbang" | "print" | "send" | "receive" | "forward"
-        | "ezdac~" | "dac~" | "adc~" => NodePurity::Pure,
+        "+" | "-" | "*" | "/" | "%" | "trigger" | "t" | "route" | "select" | "prepend"
+        | "append" | "stripnote" | "makenote" | "scale" | "split" | "swap" | "clip" | "minimum"
+        | "maximum" | "inlet" | "inlet~" | "outlet" | "outlet~" | "loadbang" | "print" | "send"
+        | "receive" | "forward" | "ezdac~" | "dac~" | "adc~" => NodePurity::Pure,
         _ => NodePurity::Unknown,
     }
 }
@@ -921,7 +950,7 @@ fn assign_edge_orders(graph: &mut PatchGraph) {
     }
 
     // Only assign order to groups with 2+ edges
-    for (_key, indices) in &groups {
+    for indices in groups.values() {
         if indices.len() >= 2 {
             for (order, &edge_idx) in indices.iter().enumerate() {
                 graph.edges[edge_idx].order = Some(order as u32);
@@ -1056,8 +1085,14 @@ fn normalize_port_description(description: &str) -> Option<String> {
         .collect();
     let parts: Vec<&str> = s.split('_').filter(|p| !p.is_empty()).collect();
     let result = parts.join("_");
-    let result = result.trim_start_matches(|c: char| c.is_ascii_digit()).to_string();
-    if result.is_empty() || result.len() > 20 { None } else { Some(result) }
+    let result = result
+        .trim_start_matches(|c: char| c.is_ascii_digit())
+        .to_string();
+    if result.is_empty() || result.len() > 20 {
+        None
+    } else {
+        Some(result)
+    }
 }
 
 /// Resolve a named argument against the AbstractionRegistry.
@@ -1089,7 +1124,10 @@ fn infer_num_inlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb>
         if let Some(def) = db.lookup(object_name) {
             return match &def.inlets {
                 InletSpec::Fixed(ports) => ports.len() as u32,
-                InletSpec::Variable { defaults, min_inlets } => {
+                InletSpec::Variable {
+                    defaults,
+                    min_inlets,
+                } => {
                     if args.is_empty() {
                         defaults.len().max(*min_inlets as usize) as u32
                     } else {
@@ -1141,14 +1179,32 @@ fn infer_num_inlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb>
         "outlet" | "outlet~" => 1,
         // Variable inlets (arg-dependent)
         "trigger" | "t" => 1,
-        "select" | "sel" => if args.is_empty() { 2 } else { 1 },
+        "select" | "sel" => {
+            if args.is_empty() {
+                2
+            } else {
+                1
+            }
+        }
         "route" => 1,
         "gate" => 2,
-        "pack" | "pak" => if args.is_empty() { 2 } else { args.len() as u32 },
+        "pack" | "pak" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.len() as u32
+            }
+        }
         "unpack" => 1,
-        "buddy" => if args.is_empty() { 2 } else {
-            args.first().and_then(|a| a.parse::<u32>().ok()).unwrap_or(2)
-        },
+        "buddy" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.first()
+                    .and_then(|a| a.parse::<u32>().ok())
+                    .unwrap_or(2)
+            }
+        }
         // MIDI
         "makenote" => 3,
         "notein" => 1,
@@ -1164,7 +1220,13 @@ fn infer_num_inlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb>
         "counter" => 3,
         "metro" => 2,
         "delay" => 2,
-        "pipe" => if args.is_empty() { 2 } else { args.len() as u32 + 1 },
+        "pipe" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.len() as u32 + 1
+            }
+        }
         "speedlim" => 2,
         "thresh" => 2,
         // Data structures
@@ -1176,7 +1238,13 @@ fn infer_num_inlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb>
         "match" => 1,
         "zl" => 2,
         "regexp" => 1,
-        "sprintf" => if args.is_empty() { 1 } else { args.len() as u32 },
+        "sprintf" => {
+            if args.is_empty() {
+                1
+            } else {
+                args.len() as u32
+            }
+        }
         "fromsymbol" => 1,
         "tosymbol" => 1,
         "iter" => 1,
@@ -1198,7 +1266,10 @@ fn infer_num_outlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb
         if let Some(def) = db.lookup(object_name) {
             return match &def.outlets {
                 OutletSpec::Fixed(ports) => ports.len() as u32,
-                OutletSpec::Variable { defaults, min_outlets } => {
+                OutletSpec::Variable {
+                    defaults,
+                    min_outlets,
+                } => {
                     if args.is_empty() {
                         defaults.len().max(*min_outlets as usize) as u32
                     } else {
@@ -1244,24 +1315,61 @@ fn infer_num_outlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb
         "inlet" | "inlet~" => 1,
         "outlet" | "outlet~" => 0,
         // Variable outlets (arg-dependent)
-        "select" | "sel" => if args.is_empty() { 2 } else { args.len() as u32 + 1 },
-        "route" => if args.is_empty() { 2 } else { args.len() as u32 + 1 },
-        "gate" => args.first()
+        "select" | "sel" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.len() as u32 + 1
+            }
+        }
+        "route" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.len() as u32 + 1
+            }
+        }
+        "gate" => args
+            .first()
             .and_then(|a| a.parse::<u32>().ok())
             .unwrap_or(2),
-        "trigger" | "t" => if args.is_empty() { 1 } else { args.len() as u32 },
-        "unpack" => if args.is_empty() { 2 } else { args.len() as u32 },
+        "trigger" | "t" => {
+            if args.is_empty() {
+                1
+            } else {
+                args.len() as u32
+            }
+        }
+        "unpack" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.len() as u32
+            }
+        }
         "pack" | "pak" => 1,
-        "buddy" => if args.is_empty() { 2 } else {
-            args.first().and_then(|a| a.parse::<u32>().ok()).unwrap_or(2)
-        },
+        "buddy" => {
+            if args.is_empty() {
+                2
+            } else {
+                args.first()
+                    .and_then(|a| a.parse::<u32>().ok())
+                    .unwrap_or(2)
+            }
+        }
         // Timing / control
         "function" => 2,
         "line" => 2,
         "counter" => 4,
         "metro" => 1,
         "delay" => 1,
-        "pipe" => if args.is_empty() { 1 } else { args.len() as u32 },
+        "pipe" => {
+            if args.is_empty() {
+                1
+            } else {
+                args.len() as u32
+            }
+        }
         "speedlim" => 1,
         "thresh" => 2,
         // MIDI
@@ -1338,10 +1446,8 @@ fn infer_codebox_ports(code: &str) -> (u32, u32) {
                     j += 1;
                 }
                 // Must have digits and NOT be followed by alphanumeric (word boundary)
-                if has_digit && (j >= len || !bytes[j].is_ascii_alphanumeric()) {
-                    if num > max_out {
-                        max_out = num;
-                    }
+                if has_digit && (j >= len || !bytes[j].is_ascii_alphanumeric()) && num > max_out {
+                    max_out = num;
                 }
                 i = j;
                 continue;
@@ -1355,10 +1461,8 @@ fn infer_codebox_ports(code: &str) -> (u32, u32) {
                     has_digit = true;
                     j += 1;
                 }
-                if has_digit && (j >= len || !bytes[j].is_ascii_alphanumeric()) {
-                    if num > max_in {
-                        max_in = num;
-                    }
+                if has_digit && (j >= len || !bytes[j].is_ascii_alphanumeric()) && num > max_in {
+                    max_in = num;
                 }
                 if has_digit {
                     i = j;
@@ -1519,11 +1623,13 @@ fn detect_duplicate_inlets(graph: &PatchGraph) -> Vec<BuildWarning> {
     let mut warnings: Vec<BuildWarning> = inlet_counts
         .into_iter()
         .filter(|(_, count)| *count > 1)
-        .map(|((node_id, inlet), count)| BuildWarning::DuplicateInletConnection {
-            node_id,
-            inlet,
-            count,
-        })
+        .map(
+            |((node_id, inlet), count)| BuildWarning::DuplicateInletConnection {
+                node_id,
+                inlet,
+                count,
+            },
+        )
         .collect();
     // Sort to make output order deterministic
     warnings.sort_by(|a, b| {
@@ -1687,11 +1793,7 @@ mod tests {
         assert_eq!(inlet_to_cycle.dest_inlet, 0);
 
         // cycle~ → *~ (inlet 0)
-        let mul_node = graph
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "*~")
-            .unwrap();
+        let mul_node = graph.nodes.iter().find(|n| n.object_name == "*~").unwrap();
         let cycle_to_mul = graph
             .edges
             .iter()
@@ -1718,11 +1820,7 @@ mod tests {
         let prog = make_l2_program();
         let graph = build_graph(&prog).unwrap();
 
-        let mul_node = graph
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "*~")
-            .unwrap();
+        let mul_node = graph.nodes.iter().find(|n| n.object_name == "*~").unwrap();
         // *~(osc, 0.5) -> args contains "0.5"
         assert_eq!(mul_node.args, vec!["0.5"]);
     }
@@ -1969,11 +2067,7 @@ mod tests {
             .iter()
             .find(|n| n.object_name == "cycle~")
             .unwrap();
-        let mul_node = graph
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "*~")
-            .unwrap();
+        let mul_node = graph.nodes.iter().find(|n| n.object_name == "*~").unwrap();
 
         // Edge: cycle~ -> *~
         let edge = graph
@@ -1994,13 +2088,13 @@ mod tests {
                     index: 0,
                     name: "left".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
                 OutDecl {
                     index: 1,
                     name: "right".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
             ],
             wires: vec![Wire {
@@ -2254,13 +2348,13 @@ mod tests {
                     index: 0,
                     name: "lowpass".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
                 OutDecl {
                     index: 1,
                     name: "highpass".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
             ],
             wires: vec![],
@@ -2426,13 +2520,13 @@ mod tests {
                     index: 0,
                     name: "x".to_string(),
                     port_type: PortType::Float,
-                value: None,
+                    value: None,
                 },
                 OutDecl {
                     index: 1,
                     name: "y".to_string(),
                     port_type: PortType::Float,
-                value: None,
+                    value: None,
                 },
             ],
             wires: vec![],
@@ -2504,7 +2598,8 @@ mod tests {
         assert_eq!(edges_from_unpack.len(), 2);
 
         // From outlet 0 and outlet 1 respectively
-        let mut source_outlets: Vec<u32> = edges_from_unpack.iter().map(|e| e.source_outlet).collect();
+        let mut source_outlets: Vec<u32> =
+            edges_from_unpack.iter().map(|e| e.source_outlet).collect();
         source_outlets.sort();
         assert_eq!(source_outlets, vec![0, 1]);
     }
@@ -2530,10 +2625,7 @@ mod tests {
             out_decls: vec![],
             wires: vec![Wire {
                 name: "packed".to_string(),
-                value: Expr::Tuple(vec![
-                    Expr::Ref("x".to_string()),
-                    Expr::Ref("y".to_string()),
-                ]),
+                value: Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string())]),
                 span: None,
                 attrs: vec![],
             }],
@@ -2598,10 +2690,7 @@ mod tests {
             out_decls: vec![],
             wires: vec![Wire {
                 name: "t".to_string(),
-                value: Expr::Tuple(vec![
-                    Expr::Ref("a".to_string()),
-                    Expr::Ref("b".to_string()),
-                ]),
+                value: Expr::Tuple(vec![Expr::Ref("a".to_string()), Expr::Ref("b".to_string())]),
                 span: None,
                 attrs: vec![],
             }],
@@ -2737,12 +2826,12 @@ mod tests {
         assert!(!tapin_to_tapout.is_feedback);
 
         // feedback assignment edge has is_feedback=true
-        let feedback_edges: Vec<_> = graph
-            .edges
-            .iter()
-            .filter(|e| e.is_feedback)
-            .collect();
-        assert_eq!(feedback_edges.len(), 1, "should have exactly one feedback edge");
+        let feedback_edges: Vec<_> = graph.edges.iter().filter(|e| e.is_feedback).collect();
+        assert_eq!(
+            feedback_edges.len(),
+            1,
+            "should have exactly one feedback edge"
+        );
     }
 
     #[test]
@@ -2825,7 +2914,11 @@ mod tests {
             .iter()
             .filter(|n| n.object_name == "trigger")
             .collect();
-        assert_eq!(trigger_nodes.len(), 0, "no trigger nodes should be inserted for signal-only feedback");
+        assert_eq!(
+            trigger_nodes.len(),
+            0,
+            "no trigger nodes should be inserted for signal-only feedback"
+        );
     }
 
     // ─── E004: NoOutDeclaration tests ───
@@ -3018,7 +3111,11 @@ mod tests {
         let result = build_graph_with_registry(&prog, Some(&registry));
         assert!(result.is_err());
         match result.unwrap_err() {
-            BuildError::AbstractionArgCountMismatch { name, expected, got } => {
+            BuildError::AbstractionArgCountMismatch {
+                name,
+                expected,
+                got,
+            } => {
                 assert_eq!(name, "oscillator");
                 assert_eq!(expected, 1);
                 assert_eq!(got, 2);
@@ -3064,7 +3161,7 @@ mod tests {
     #[test]
     fn test_e013_duplicate_feedback_assignment_detected() {
         // 2 assignments to same feedback variable -> E013
-        use flutmax_ast::{FeedbackDecl, FeedbackAssignment};
+        use flutmax_ast::{FeedbackAssignment, FeedbackDecl};
 
         let prog = Program {
             in_decls: vec![InDecl {
@@ -3118,7 +3215,7 @@ mod tests {
     #[test]
     fn test_e013_single_feedback_assignment_no_error() {
         // 1 feedback assignment -> no error
-        use flutmax_ast::{FeedbackDecl, FeedbackAssignment};
+        use flutmax_ast::{FeedbackAssignment, FeedbackDecl};
 
         let prog = Program {
             in_decls: vec![InDecl {
@@ -3170,13 +3267,13 @@ mod tests {
                     index: 0,
                     name: "left".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
                 OutDecl {
                     index: 1,
                     name: "right".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
             ],
             wires: vec![Wire {
@@ -3229,10 +3326,7 @@ mod tests {
         assert!(edges_from_cycle[1].order.is_some());
 
         // order is 0 and 1
-        let mut orders: Vec<u32> = edges_from_cycle
-            .iter()
-            .map(|e| e.order.unwrap())
-            .collect();
+        let mut orders: Vec<u32> = edges_from_cycle.iter().map(|e| e.order.unwrap()).collect();
         orders.sort();
         assert_eq!(orders, vec![0, 1]);
     }
@@ -3344,11 +3438,7 @@ mod tests {
             .unwrap();
         assert_eq!(cycle_node.purity, NodePurity::Pure);
 
-        let mul_node = graph
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "*~")
-            .unwrap();
+        let mul_node = graph.nodes.iter().find(|n| n.object_name == "*~").unwrap();
         assert_eq!(mul_node.purity, NodePurity::Pure);
     }
 
@@ -3364,11 +3454,7 @@ mod tests {
             .unwrap();
         assert_eq!(cycle_node.hot_inlets, vec![true, false]);
 
-        let mul_node = graph
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "*~")
-            .unwrap();
+        let mul_node = graph.nodes.iter().find(|n| n.object_name == "*~").unwrap();
         assert_eq!(mul_node.hot_inlets, vec![true, false]);
     }
 
@@ -3473,9 +3559,9 @@ mod tests {
         let result = build_graph(&prog);
         assert!(result.is_ok());
         let graph = result.unwrap();
-        let target_node = graph.find_node("target_id_0").or_else(|| {
-            graph.nodes.iter().find(|n| n.object_name == "+")
-        });
+        let target_node = graph
+            .find_node("target_id_0")
+            .or_else(|| graph.nodes.iter().find(|n| n.object_name == "+"));
         assert!(target_node.is_some());
         // The node should now have at least 100 inlets (index 99 + 1)
         assert!(target_node.unwrap().num_inlets >= 100);
@@ -3611,10 +3697,7 @@ mod tests {
             out_decls: vec![],
             wires: vec![Wire {
                 name: "t".to_string(),
-                value: Expr::Tuple(vec![
-                    Expr::Ref("x".to_string()),
-                    Expr::Ref("y".to_string()),
-                ]),
+                value: Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string())]),
                 span: None,
                 attrs: vec![],
             }],
@@ -3678,7 +3761,10 @@ mod tests {
         };
 
         let result = build_graph(&prog);
-        assert!(result.is_ok(), "bare reference to multi-outlet node should be OK");
+        assert!(
+            result.is_ok(),
+            "bare reference to multi-outlet node should be OK"
+        );
     }
 
     #[test]
@@ -3725,7 +3811,11 @@ mod tests {
         };
 
         let result = build_graph(&prog);
-        assert!(result.is_ok(), "OutputPortAccess should bypass E020: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "OutputPortAccess should bypass E020: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -3768,7 +3858,11 @@ mod tests {
         };
 
         let result = build_graph(&prog);
-        assert!(result.is_ok(), "destructured name should not trigger E020: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "destructured name should not trigger E020: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -3806,7 +3900,11 @@ mod tests {
         };
 
         let result = build_graph(&prog);
-        assert!(result.is_ok(), "single outlet bare ref should be OK: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "single outlet bare ref should be OK: {:?}",
+            result.err()
+        );
     }
 
     // ─── State tests ───
@@ -3940,7 +4038,10 @@ mod tests {
             .iter()
             .find(|e| e.source_id == add_node.id && e.dest_id == int_node.id)
             .expect("edge from add to int should exist");
-        assert_eq!(edge.dest_inlet, 1, "state assignment should connect to cold inlet (1)");
+        assert_eq!(
+            edge.dest_inlet, 1,
+            "state assignment should connect to cold inlet (1)"
+        );
     }
 
     #[test]
@@ -4238,16 +4339,21 @@ mod tests {
 
         let prog = Program {
             in_decls: vec![
-                InDecl { index: 0, name: "x".to_string(), port_type: PortType::Float },
-                InDecl { index: 1, name: "y".to_string(), port_type: PortType::Float },
+                InDecl {
+                    index: 0,
+                    name: "x".to_string(),
+                    port_type: PortType::Float,
+                },
+                InDecl {
+                    index: 1,
+                    name: "y".to_string(),
+                    port_type: PortType::Float,
+                },
             ],
             out_decls: vec![],
             wires: vec![Wire {
                 name: "t".to_string(),
-                value: Expr::Tuple(vec![
-                    Expr::Ref("x".to_string()),
-                    Expr::Ref("y".to_string()),
-                ]),
+                value: Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string())]),
                 span: None,
                 attrs: vec![],
             }],
@@ -4709,7 +4815,11 @@ mod tests {
     fn test_infer_outlets_select_multiple_args() {
         // select 1 2 3 → 4 outlets (3 matches + 1 unmatched)
         assert_eq!(
-            infer_num_outlets("select", &["1".to_string(), "2".to_string(), "3".to_string()], None),
+            infer_num_outlets(
+                "select",
+                &["1".to_string(), "2".to_string(), "3".to_string()],
+                None
+            ),
             4
         );
     }
@@ -4739,7 +4849,11 @@ mod tests {
     fn test_infer_outlets_trigger_alias() {
         // t b i f → 3 outlets
         assert_eq!(
-            infer_num_outlets("t", &["b".to_string(), "i".to_string(), "f".to_string()], None),
+            infer_num_outlets(
+                "t",
+                &["b".to_string(), "i".to_string(), "f".to_string()],
+                None
+            ),
             3
         );
     }
@@ -4754,7 +4868,11 @@ mod tests {
     fn test_infer_outlets_route() {
         // route a b c → 4 outlets (3 matches + 1 unmatched)
         assert_eq!(
-            infer_num_outlets("route", &["a".to_string(), "b".to_string(), "c".to_string()], None),
+            infer_num_outlets(
+                "route",
+                &["a".to_string(), "b".to_string(), "c".to_string()],
+                None
+            ),
             4
         );
     }
@@ -4775,7 +4893,11 @@ mod tests {
     fn test_infer_outlets_unpack_with_args() {
         // unpack f f f → 3 outlets
         assert_eq!(
-            infer_num_outlets("unpack", &["f".to_string(), "f".to_string(), "f".to_string()], None),
+            infer_num_outlets(
+                "unpack",
+                &["f".to_string(), "f".to_string(), "f".to_string()],
+                None
+            ),
             3
         );
     }
@@ -4789,7 +4911,10 @@ mod tests {
     #[test]
     fn test_infer_outlets_pack() {
         // pack always → 1 outlet
-        assert_eq!(infer_num_outlets("pack", &["0".to_string(), "0".to_string()], None), 1);
+        assert_eq!(
+            infer_num_outlets("pack", &["0".to_string(), "0".to_string()], None),
+            1
+        );
     }
 
     #[test]
@@ -5008,7 +5133,10 @@ mod tests {
     #[test]
     fn test_codebox_with_code_files() {
         let mut code_files = CodeFiles::new();
-        code_files.insert("processor.js".to_string(), "function bang() { outlet(0, 42); }".to_string());
+        code_files.insert(
+            "processor.js".to_string(),
+            "function bang() { outlet(0, 42); }".to_string(),
+        );
 
         let prog = Program {
             in_decls: vec![],
@@ -5017,7 +5145,9 @@ mod tests {
                 name: "cb".to_string(),
                 value: Expr::Call {
                     object: "v8.codebox".to_string(),
-                    args: vec![CallArg::positional(Expr::Lit(LitValue::Str("processor.js".to_string())))],
+                    args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                        "processor.js".to_string(),
+                    )))],
                 },
                 span: None,
                 attrs: vec![],
@@ -5040,8 +5170,14 @@ mod tests {
             .find(|n| n.object_name == "v8.codebox")
             .expect("should have a v8.codebox node");
 
-        assert_eq!(cb_node.code, Some("function bang() { outlet(0, 42); }".to_string()));
-        assert!(cb_node.args.is_empty(), "args should be cleared when code file is resolved");
+        assert_eq!(
+            cb_node.code,
+            Some("function bang() { outlet(0, 42); }".to_string())
+        );
+        assert!(
+            cb_node.args.is_empty(),
+            "args should be cleared when code file is resolved"
+        );
     }
 
     #[test]
@@ -5054,7 +5190,9 @@ mod tests {
                 name: "cb".to_string(),
                 value: Expr::Call {
                     object: "v8.codebox".to_string(),
-                    args: vec![CallArg::positional(Expr::Lit(LitValue::Str("processor.js".to_string())))],
+                    args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                        "processor.js".to_string(),
+                    )))],
                 },
                 span: None,
                 attrs: vec![],
@@ -5129,7 +5267,9 @@ mod tests {
     /// Registered objects return inlet/outlet counts from objdb
     #[test]
     fn test_infer_with_objdb() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5138,13 +5278,38 @@ mod tests {
             category: "test".to_string(),
             digest: "test object".to_string(),
             inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: true, description: "in 0".to_string() },
-                PortDef { id: 1, port_type: ObjPortType::Signal, is_hot: false, description: "in 1".to_string() },
-                PortDef { id: 2, port_type: ObjPortType::Float, is_hot: false, description: "in 2".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: ObjPortType::Signal,
+                    is_hot: true,
+                    description: "in 0".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: ObjPortType::Signal,
+                    is_hot: false,
+                    description: "in 1".to_string(),
+                },
+                PortDef {
+                    id: 2,
+                    port_type: ObjPortType::Float,
+                    is_hot: false,
+                    description: "in 2".to_string(),
+                },
             ]),
             outlets: OutletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: false, description: "out 0".to_string() },
-                PortDef { id: 1, port_type: ObjPortType::Signal, is_hot: false, description: "out 1".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: ObjPortType::Signal,
+                    is_hot: false,
+                    description: "out 0".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: ObjPortType::Signal,
+                    is_hot: false,
+                    description: "out 1".to_string(),
+                },
             ]),
             args: vec![],
         });
@@ -5173,7 +5338,9 @@ mod tests {
     /// objdb Variable inlet/outlet works correctly with default arguments
     #[test]
     fn test_infer_objdb_variable_ports() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5183,16 +5350,41 @@ mod tests {
             digest: "variable port object".to_string(),
             inlets: InletSpec::Variable {
                 defaults: vec![
-                    PortDef { id: 0, port_type: ObjPortType::Any, is_hot: true, description: "in 0".to_string() },
-                    PortDef { id: 1, port_type: ObjPortType::Any, is_hot: false, description: "in 1".to_string() },
+                    PortDef {
+                        id: 0,
+                        port_type: ObjPortType::Any,
+                        is_hot: true,
+                        description: "in 0".to_string(),
+                    },
+                    PortDef {
+                        id: 1,
+                        port_type: ObjPortType::Any,
+                        is_hot: false,
+                        description: "in 1".to_string(),
+                    },
                 ],
                 min_inlets: 1,
             },
             outlets: OutletSpec::Variable {
                 defaults: vec![
-                    PortDef { id: 0, port_type: ObjPortType::Any, is_hot: false, description: "out 0".to_string() },
-                    PortDef { id: 1, port_type: ObjPortType::Any, is_hot: false, description: "out 1".to_string() },
-                    PortDef { id: 2, port_type: ObjPortType::Any, is_hot: false, description: "out 2".to_string() },
+                    PortDef {
+                        id: 0,
+                        port_type: ObjPortType::Any,
+                        is_hot: false,
+                        description: "out 0".to_string(),
+                    },
+                    PortDef {
+                        id: 1,
+                        port_type: ObjPortType::Any,
+                        is_hot: false,
+                        description: "out 1".to_string(),
+                    },
+                    PortDef {
+                        id: 2,
+                        port_type: ObjPortType::Any,
+                        is_hot: false,
+                        description: "out 2".to_string(),
+                    },
                 ],
                 min_outlets: 1,
             },
@@ -5204,8 +5396,18 @@ mod tests {
         assert_eq!(infer_num_outlets("varobj", &[], Some(&db)), 3);
 
         // With arguments -> returns args.len()
-        assert_eq!(infer_num_inlets("varobj", &["a".to_string(), "b".to_string(), "c".to_string()], Some(&db)), 3);
-        assert_eq!(infer_num_outlets("varobj", &["x".to_string(), "y".to_string()], Some(&db)), 2);
+        assert_eq!(
+            infer_num_inlets(
+                "varobj",
+                &["a".to_string(), "b".to_string(), "c".to_string()],
+                Some(&db)
+            ),
+            3
+        );
+        assert_eq!(
+            infer_num_outlets("varobj", &["x".to_string(), "y".to_string()], Some(&db)),
+            2
+        );
     }
 
     // ── E52: OutDecl with inline value ──────────────────────
@@ -5276,17 +5478,29 @@ mod tests {
         let separate_graph = build_graph(&separate_program).expect("separate build failed");
 
         // Both should have same number of nodes and edges
-        assert_eq!(inline_graph.nodes.len(), separate_graph.nodes.len(),
-            "node count mismatch: inline={} vs separate={}", inline_graph.nodes.len(), separate_graph.nodes.len());
-        assert_eq!(inline_graph.edges.len(), separate_graph.edges.len(),
-            "edge count mismatch: inline={} vs separate={}", inline_graph.edges.len(), separate_graph.edges.len());
+        assert_eq!(
+            inline_graph.nodes.len(),
+            separate_graph.nodes.len(),
+            "node count mismatch: inline={} vs separate={}",
+            inline_graph.nodes.len(),
+            separate_graph.nodes.len()
+        );
+        assert_eq!(
+            inline_graph.edges.len(),
+            separate_graph.edges.len(),
+            "edge count mismatch: inline={} vs separate={}",
+            inline_graph.edges.len(),
+            separate_graph.edges.len()
+        );
     }
 
     // ── Named argument resolution tests ─────────────────────────
 
     #[test]
     fn test_resolve_inlet_name_found() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5295,20 +5509,38 @@ mod tests {
             category: String::new(),
             digest: String::new(),
             inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::SignalFloat, is_hot: true, description: "Frequency".to_string() },
-                PortDef { id: 1, port_type: ObjPortType::SignalFloat, is_hot: false, description: "Phase offset".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: true,
+                    description: "Frequency".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: false,
+                    description: "Phase offset".to_string(),
+                },
             ]),
             outlets: OutletSpec::Fixed(vec![]),
             args: vec![],
         });
 
-        assert_eq!(resolve_inlet_name("cycle~", "frequency", Some(&db)), Some(0));
-        assert_eq!(resolve_inlet_name("cycle~", "phase_offset", Some(&db)), Some(1));
+        assert_eq!(
+            resolve_inlet_name("cycle~", "frequency", Some(&db)),
+            Some(0)
+        );
+        assert_eq!(
+            resolve_inlet_name("cycle~", "phase_offset", Some(&db)),
+            Some(1)
+        );
     }
 
     #[test]
     fn test_resolve_inlet_name_not_found() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5316,9 +5548,12 @@ mod tests {
             module: Module::Msp,
             category: String::new(),
             digest: String::new(),
-            inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::SignalFloat, is_hot: true, description: "Frequency".to_string() },
-            ]),
+            inlets: InletSpec::Fixed(vec![PortDef {
+                id: 0,
+                port_type: ObjPortType::SignalFloat,
+                is_hot: true,
+                description: "Frequency".to_string(),
+            }]),
             outlets: OutletSpec::Fixed(vec![]),
             args: vec![],
         });
@@ -5333,34 +5568,68 @@ mod tests {
 
     #[test]
     fn test_resolve_abstraction_inlet_name() {
-        use flutmax_sema::registry::{AbstractionRegistry, AbstractionInterface, PortInfo};
         use flutmax_ast::PortType;
+        use flutmax_sema::registry::{AbstractionInterface, AbstractionRegistry, PortInfo};
 
         let mut reg = AbstractionRegistry::new();
         reg.register_interface(AbstractionInterface {
             name: "simpleFM".to_string(),
             in_ports: vec![
-                PortInfo { index: 0, name: "carrier_freq".to_string(), port_type: PortType::Float },
-                PortInfo { index: 1, name: "harmonicity".to_string(), port_type: PortType::Float },
-                PortInfo { index: 2, name: "mod_index".to_string(), port_type: PortType::Float },
+                PortInfo {
+                    index: 0,
+                    name: "carrier_freq".to_string(),
+                    port_type: PortType::Float,
+                },
+                PortInfo {
+                    index: 1,
+                    name: "harmonicity".to_string(),
+                    port_type: PortType::Float,
+                },
+                PortInfo {
+                    index: 2,
+                    name: "mod_index".to_string(),
+                    port_type: PortType::Float,
+                },
             ],
-            out_ports: vec![
-                PortInfo { index: 0, name: "output".to_string(), port_type: PortType::Signal },
-            ],
+            out_ports: vec![PortInfo {
+                index: 0,
+                name: "output".to_string(),
+                port_type: PortType::Signal,
+            }],
         });
 
-        assert_eq!(resolve_abstraction_inlet_name("simpleFM", "carrier_freq", Some(&reg)), Some(0));
-        assert_eq!(resolve_abstraction_inlet_name("simpleFM", "harmonicity", Some(&reg)), Some(1));
-        assert_eq!(resolve_abstraction_inlet_name("simpleFM", "mod_index", Some(&reg)), Some(2));
-        assert_eq!(resolve_abstraction_inlet_name("simpleFM", "nonexistent", Some(&reg)), None);
-        assert_eq!(resolve_abstraction_inlet_name("unknown", "carrier_freq", Some(&reg)), None);
-        assert_eq!(resolve_abstraction_inlet_name("simpleFM", "carrier_freq", None), None);
+        assert_eq!(
+            resolve_abstraction_inlet_name("simpleFM", "carrier_freq", Some(&reg)),
+            Some(0)
+        );
+        assert_eq!(
+            resolve_abstraction_inlet_name("simpleFM", "harmonicity", Some(&reg)),
+            Some(1)
+        );
+        assert_eq!(
+            resolve_abstraction_inlet_name("simpleFM", "mod_index", Some(&reg)),
+            Some(2)
+        );
+        assert_eq!(
+            resolve_abstraction_inlet_name("simpleFM", "nonexistent", Some(&reg)),
+            None
+        );
+        assert_eq!(
+            resolve_abstraction_inlet_name("unknown", "carrier_freq", Some(&reg)),
+            None
+        );
+        assert_eq!(
+            resolve_abstraction_inlet_name("simpleFM", "carrier_freq", None),
+            None
+        );
     }
 
     #[test]
     fn test_named_arg_codegen() {
         // Named args should resolve to correct inlet indices
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5369,21 +5638,47 @@ mod tests {
             category: String::new(),
             digest: String::new(),
             inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: true, description: "Input".to_string() },
-                PortDef { id: 1, port_type: ObjPortType::SignalFloat, is_hot: false, description: "Frequency".to_string() },
-                PortDef { id: 2, port_type: ObjPortType::SignalFloat, is_hot: false, description: "Q factor".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: ObjPortType::Signal,
+                    is_hot: true,
+                    description: "Input".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: false,
+                    description: "Frequency".to_string(),
+                },
+                PortDef {
+                    id: 2,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: false,
+                    description: "Q factor".to_string(),
+                },
             ]),
-            outlets: OutletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: false, description: "Output".to_string() },
-            ]),
+            outlets: OutletSpec::Fixed(vec![PortDef {
+                id: 0,
+                port_type: ObjPortType::Signal,
+                is_hot: false,
+                description: "Output".to_string(),
+            }]),
             args: vec![],
         });
 
         // Build a program with named args
         let program = Program {
             in_decls: vec![
-                InDecl { index: 0, name: "sig".to_string(), port_type: PortType::Signal },
-                InDecl { index: 1, name: "freq".to_string(), port_type: PortType::Float },
+                InDecl {
+                    index: 0,
+                    name: "sig".to_string(),
+                    port_type: PortType::Signal,
+                },
+                InDecl {
+                    index: 1,
+                    name: "freq".to_string(),
+                    port_type: PortType::Float,
+                },
             ],
             out_decls: vec![OutDecl {
                 index: 0,
@@ -5419,29 +5714,41 @@ mod tests {
             state_assignments: vec![],
         };
 
-        let graph = build_graph_with_objdb(&program, None, None, Some(&db))
-            .expect("should build graph");
+        let graph =
+            build_graph_with_objdb(&program, None, None, Some(&db)).expect("should build graph");
 
         // Verify that the named args resolved to the correct inlet indices
         // "frequency" → inlet 1, "input" → inlet 0
         // Find the biquad~ node ID
-        let biquad_node = graph.nodes.iter()
+        let biquad_node = graph
+            .nodes
+            .iter()
             .find(|n| n.object_name == "biquad~")
             .expect("should have biquad~ node");
         let biquad_id = &biquad_node.id;
 
-        let biquad_edges: Vec<_> = graph.edges.iter()
+        let biquad_edges: Vec<_> = graph
+            .edges
+            .iter()
             .filter(|e| &e.dest_id == biquad_id)
             .collect();
 
         // Should have 2 edges going into biquad~
-        assert_eq!(biquad_edges.len(), 2, "expected 2 edges to biquad~, got {}: {:?}",
-            biquad_edges.len(), biquad_edges);
+        assert_eq!(
+            biquad_edges.len(),
+            2,
+            "expected 2 edges to biquad~, got {}: {:?}",
+            biquad_edges.len(),
+            biquad_edges
+        );
 
         // Check inlet assignments: freq→inlet 1, sig→inlet 0
         let freq_edge = biquad_edges.iter().find(|e| e.dest_inlet == 1);
         let sig_edge = biquad_edges.iter().find(|e| e.dest_inlet == 0);
-        assert!(freq_edge.is_some(), "should have edge to inlet 1 (frequency)");
+        assert!(
+            freq_edge.is_some(),
+            "should have edge to inlet 1 (frequency)"
+        );
         assert!(sig_edge.is_some(), "should have edge to inlet 0 (input)");
     }
 }

@@ -130,19 +130,30 @@ pub fn parse_patcher_value(patcher: &Value) -> Result<MaxPat, DecompileError> {
 /// NOT excluded here. They flow into `extra_attrs` so the analyzer can classify
 /// them as decorative (for .uiflutmax) or functional (for .flutmax .attr()).
 const STRUCTURAL_FIELDS: &[&str] = &[
-    "id", "maxclass", "text", "numinlets", "numoutlets",
-    "outlettype", "patching_rect", "comment", "varname",
-    "patcher", "style",
+    "id",
+    "maxclass",
+    "text",
+    "numinlets",
+    "numoutlets",
+    "outlettype",
+    "patching_rect",
+    "comment",
+    "varname",
+    "patcher",
+    "style",
     // Hidden/ignoreclick are patcher internals, not user attributes:
-    "hidden", "ignoreclick",
+    "hidden",
+    "ignoreclick",
     // Saved state fields:
-    "saved_object_attributes", "saved_attribute_attributes",
+    "saved_object_attributes",
+    "saved_attribute_attributes",
     // Linecount for multi-line display:
     "linecount",
     // RNBO metadata (complex structure, not roundtrippable as .attr()):
     "rnboinfo",
     // Codebox fields (code is extracted separately, filename is structural):
-    "code", "filename",
+    "code",
+    "filename",
 ];
 
 fn parse_boxes(patcher: &Value) -> Result<Vec<MaxBox>, DecompileError> {
@@ -169,7 +180,10 @@ fn parse_boxes(patcher: &Value) -> Result<Vec<MaxBox>, DecompileError> {
             .ok_or_else(|| DecompileError::MissingField("box.maxclass".to_string()))?
             .to_string();
 
-        let text = box_obj.get("text").and_then(|v| v.as_str()).map(String::from);
+        let text = box_obj
+            .get("text")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         let numinlets = box_obj
             .get("numinlets")
@@ -201,7 +215,10 @@ fn parse_boxes(patcher: &Value) -> Result<Vec<MaxBox>, DecompileError> {
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        let code = box_obj.get("code").and_then(|v| v.as_str()).map(String::from);
+        let code = box_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         // Check for embedded patcher (subpatchers, bpatchers, poly~, pfft~)
         let embedded_patcher = if let Some(patcher_val) = box_obj.get("patcher") {
@@ -299,7 +316,10 @@ fn parse_lines(patcher: &Value) -> Result<Vec<MaxLine>, DecompileError> {
             .ok_or_else(|| DecompileError::MissingField("destination[1] (inlet)".to_string()))?
             as u32;
 
-        let order = patchline.get("order").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let order = patchline
+            .get("order")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as u32);
 
         result.push(MaxLine {
             source_id,
@@ -359,10 +379,11 @@ mod tests {
         assert_eq!(pat.boxes.len(), 7);
         assert_eq!(pat.lines.len(), 6);
 
-        let trigger = pat
-            .boxes
-            .iter()
-            .find(|b| b.text.as_deref().map_or(false, |t| t.starts_with("trigger")));
+        let trigger = pat.boxes.iter().find(|b| {
+            b.text
+                .as_deref()
+                .map_or(false, |t| t.starts_with("trigger"))
+        });
         assert!(trigger.is_some());
         let trigger = trigger.unwrap();
         assert_eq!(trigger.numoutlets, 2);
@@ -439,8 +460,16 @@ mod tests {
         assert_eq!(embedded.lines.len(), 2);
 
         // Check embedded boxes
-        let inlet_count = embedded.boxes.iter().filter(|b| b.maxclass == "inlet~").count();
-        let outlet_count = embedded.boxes.iter().filter(|b| b.maxclass == "outlet~").count();
+        let inlet_count = embedded
+            .boxes
+            .iter()
+            .filter(|b| b.maxclass == "inlet~")
+            .count();
+        let outlet_count = embedded
+            .boxes
+            .iter()
+            .filter(|b| b.maxclass == "outlet~")
+            .count();
         assert_eq!(inlet_count, 1);
         assert_eq!(outlet_count, 1);
     }
@@ -504,7 +533,11 @@ mod tests {
         assert_eq!(outer.boxes.len(), 3);
 
         // Inner subpatcher (nested)
-        let inner_box = outer.boxes.iter().find(|b| b.text.as_deref() == Some("p inner")).unwrap();
+        let inner_box = outer
+            .boxes
+            .iter()
+            .find(|b| b.text.as_deref() == Some("p inner"))
+            .unwrap();
         assert!(inner_box.embedded_patcher.is_some());
 
         let inner = inner_box.embedded_patcher.as_ref().unwrap();
@@ -517,7 +550,11 @@ mod tests {
         let pat = parse_maxpat(L1_JSON).unwrap();
         // Regular boxes should have None for embedded_patcher
         for b in &pat.boxes {
-            assert!(b.embedded_patcher.is_none(), "Box {} should not have embedded patcher", b.id);
+            assert!(
+                b.embedded_patcher.is_none(),
+                "Box {} should not have embedded patcher",
+                b.id
+            );
         }
     }
 
@@ -555,15 +592,33 @@ mod tests {
         assert!(attr_keys.contains(&"minimum"), "Should extract minimum");
         assert!(attr_keys.contains(&"maximum"), "Should extract maximum");
         // Decorative fields now flow through extra_attrs (separated by analyzer)
-        assert!(attr_keys.contains(&"fontname"), "Should extract fontname (decorative)");
-        assert!(attr_keys.contains(&"fontsize"), "Should extract fontsize (decorative)");
+        assert!(
+            attr_keys.contains(&"fontname"),
+            "Should extract fontname (decorative)"
+        );
+        assert!(
+            attr_keys.contains(&"fontsize"),
+            "Should extract fontsize (decorative)"
+        );
         // Structural fields should be excluded
         assert!(!attr_keys.contains(&"id"), "Should exclude id");
         assert!(!attr_keys.contains(&"maxclass"), "Should exclude maxclass");
-        assert!(!attr_keys.contains(&"patching_rect"), "Should exclude patching_rect");
-        assert!(!attr_keys.contains(&"numinlets"), "Should exclude numinlets");
-        assert!(!attr_keys.contains(&"numoutlets"), "Should exclude numoutlets");
-        assert!(!attr_keys.contains(&"outlettype"), "Should exclude outlettype");
+        assert!(
+            !attr_keys.contains(&"patching_rect"),
+            "Should exclude patching_rect"
+        );
+        assert!(
+            !attr_keys.contains(&"numinlets"),
+            "Should exclude numinlets"
+        );
+        assert!(
+            !attr_keys.contains(&"numoutlets"),
+            "Should exclude numoutlets"
+        );
+        assert!(
+            !attr_keys.contains(&"outlettype"),
+            "Should exclude outlettype"
+        );
     }
 
     #[test]
@@ -636,7 +691,10 @@ mod tests {
         let pat = parse_maxpat(json).unwrap();
         let b = &pat.boxes[0];
         let attr_keys: Vec<&str> = b.extra_attrs.iter().map(|(k, _)| k.as_str()).collect();
-        assert!(!attr_keys.contains(&"rnboinfo"), "rnboinfo should be excluded from extra_attrs");
+        assert!(
+            !attr_keys.contains(&"rnboinfo"),
+            "rnboinfo should be excluded from extra_attrs"
+        );
     }
 
     #[test]
@@ -674,8 +732,14 @@ mod tests {
         );
         // code and filename should NOT appear in extra_attrs
         let attr_keys: Vec<&str> = b.extra_attrs.iter().map(|(k, _)| k.as_str()).collect();
-        assert!(!attr_keys.contains(&"code"), "code should be excluded from extra_attrs");
-        assert!(!attr_keys.contains(&"filename"), "filename should be excluded from extra_attrs");
+        assert!(
+            !attr_keys.contains(&"code"),
+            "code should be excluded from extra_attrs"
+        );
+        assert!(
+            !attr_keys.contains(&"filename"),
+            "filename should be excluded from extra_attrs"
+        );
     }
 
     #[test]
@@ -683,7 +747,11 @@ mod tests {
         // Regular newobj boxes should have code: None
         let pat = parse_maxpat(L1_JSON).unwrap();
         for b in &pat.boxes {
-            assert!(b.code.is_none(), "Regular box {} should not have code", b.id);
+            assert!(
+                b.code.is_none(),
+                "Regular box {} should not have code",
+                b.id
+            );
         }
     }
 }

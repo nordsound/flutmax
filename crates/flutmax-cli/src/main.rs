@@ -123,7 +123,11 @@ fn run_compile(args: &[String]) {
     }
 }
 
-fn run_compile_single(input_path: &str, output_path: &str, objdb: Option<&flutmax_objdb::ObjectDb>) {
+fn run_compile_single(
+    input_path: &str,
+    output_path: &str,
+    objdb: Option<&flutmax_objdb::ObjectDb>,
+) {
     // Read input file
     let source = match fs::read_to_string(input_path) {
         Ok(s) => s,
@@ -135,13 +139,23 @@ fn run_compile_single(input_path: &str, output_path: &str, objdb: Option<&flutma
 
     // Read code files (.js, .genexpr) from the same directory
     let code_files = load_code_files(input_path);
-    let code_files_ref = if code_files.is_empty() { None } else { Some(&code_files) };
+    let code_files_ref = if code_files.is_empty() {
+        None
+    } else {
+        Some(&code_files)
+    };
 
     // Load .uiflutmax sidecar file if present
     let ui_data = load_ui_data(input_path);
 
     // Compile
-    let json = match flutmax_cli::compile_full_with_ui(&source, None, code_files_ref, objdb, ui_data.as_ref()) {
+    let json = match flutmax_cli::compile_full_with_ui(
+        &source,
+        None,
+        code_files_ref,
+        objdb,
+        ui_data.as_ref(),
+    ) {
         Ok(j) => j,
         Err(e) => {
             eprintln!("error: compilation failed: {}", e);
@@ -152,7 +166,10 @@ fn run_compile_single(input_path: &str, output_path: &str, objdb: Option<&flutma
     // Write output file
     write_output(output_path, &json);
     if ui_data.is_some() {
-        eprintln!("compiled {} -> {} (with .uiflutmax)", input_path, output_path);
+        eprintln!(
+            "compiled {} -> {} (with .uiflutmax)",
+            input_path, output_path
+        );
     } else {
         eprintln!("compiled {} -> {}", input_path, output_path);
     }
@@ -237,23 +254,36 @@ fn run_decompile(args: &[String]) {
 
     if multi {
         // Multi-file decompile: extract subpatchers as separate .flutmax files
-        run_decompile_multi(&json_str, base_name, input_path, output_path, objdb.as_ref());
+        run_decompile_multi(
+            &json_str,
+            base_name,
+            input_path,
+            output_path,
+            objdb.as_ref(),
+        );
     } else {
         // Single-file decompile with named args when objdb is available
-        let flutmax_source = match flutmax_decompile::decompile_with_objdb(&json_str, objdb.as_ref()) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("error: decompilation failed: {}", e);
-                process::exit(1);
-            }
-        };
+        let flutmax_source =
+            match flutmax_decompile::decompile_with_objdb(&json_str, objdb.as_ref()) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: decompilation failed: {}", e);
+                    process::exit(1);
+                }
+            };
 
         write_output(output_path, &flutmax_source);
         eprintln!("decompiled {} -> {}", input_path, output_path);
     }
 }
 
-fn run_decompile_multi(json_str: &str, base_name: &str, input_path: &str, output_path: &str, objdb: Option<&flutmax_objdb::ObjectDb>) {
+fn run_decompile_multi(
+    json_str: &str,
+    base_name: &str,
+    input_path: &str,
+    output_path: &str,
+    objdb: Option<&flutmax_objdb::ObjectDb>,
+) {
     use std::path::Path;
 
     let result = match flutmax_decompile::decompile_multi_with_objdb(json_str, base_name, objdb) {
@@ -279,7 +309,12 @@ fn run_decompile_multi(json_str: &str, base_name: &str, input_path: &str, output
         if result.ui_files.is_empty() {
             eprintln!("decompiled {} -> {}", input_path, output_path);
         } else {
-            eprintln!("decompiled {} -> {} + {} ui file(s)", input_path, output_path, result.ui_files.len());
+            eprintln!(
+                "decompiled {} -> {} + {} ui file(s)",
+                input_path,
+                output_path,
+                result.ui_files.len()
+            );
         }
     } else {
         // Multiple files — write to output directory
@@ -315,12 +350,18 @@ fn run_decompile_multi(json_str: &str, base_name: &str, input_path: &str, output
         let total = result.files.len() + result.code_files.len() + result.ui_files.len();
         eprintln!(
             "decompiled {} -> {} files in {}",
-            input_path, total, dir.display()
+            input_path,
+            total,
+            dir.display()
         );
     }
 }
 
-fn run_compile_directory(input_dir: &str, output_dir: &str, objdb: Option<&flutmax_objdb::ObjectDb>) {
+fn run_compile_directory(
+    input_dir: &str,
+    output_dir: &str,
+    objdb: Option<&flutmax_objdb::ObjectDb>,
+) {
     use flutmax_sema::registry::AbstractionRegistry;
     use std::path::Path;
 
@@ -395,14 +436,24 @@ fn run_compile_directory(input_dir: &str, output_dir: &str, objdb: Option<&flutm
 
     // 4. Read code files (.js, .genexpr) from input directory
     let code_files = load_code_files_from_dir(input_dir);
-    let code_files_ref = if code_files.is_empty() { None } else { Some(&code_files) };
+    let code_files_ref = if code_files.is_empty() {
+        None
+    } else {
+        Some(&code_files)
+    };
 
     // 5. Compile each file with the registry, code files, and UI data
     for (i, (stem, source, _)) in parsed.iter().enumerate() {
         // Load .uiflutmax sidecar file for this .flutmax file
         let ui_data = load_ui_data(&flutmax_files[i].to_string_lossy());
 
-        let json = match flutmax_cli::compile_full_with_ui(source, Some(&registry), code_files_ref, objdb, ui_data.as_ref()) {
+        let json = match flutmax_cli::compile_full_with_ui(
+            source,
+            Some(&registry),
+            code_files_ref,
+            objdb,
+            ui_data.as_ref(),
+        ) {
             Ok(j) => j,
             Err(e) => {
                 eprintln!(
@@ -418,11 +469,7 @@ fn run_compile_directory(input_dir: &str, output_dir: &str, objdb: Option<&flutm
         let output_file = Path::new(output_dir).join(format!("{}.maxpat", stem));
         let output_str = output_file.to_string_lossy().to_string();
         write_output(&output_str, &json);
-        eprintln!(
-            "compiled {} -> {}",
-            flutmax_files[i].display(),
-            output_str
-        );
+        eprintln!("compiled {} -> {}", flutmax_files[i].display(), output_str);
     }
 }
 

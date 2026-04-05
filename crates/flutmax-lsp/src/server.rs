@@ -33,17 +33,31 @@ impl FlutmaxLsp {
                 // Parse errors (recovered — parser continued after each)
                 for err in parse_errors {
                     let (line, col, msg) = match &err {
-                        flutmax_parser::parser::ParseError::Syntax { line, column, message } => {
-                            (line.saturating_sub(1), column.saturating_sub(1), message.clone())
-                        }
-                        flutmax_parser::parser::ParseError::Lex(le) => {
-                            (le.line.saturating_sub(1), le.column.saturating_sub(1), le.message.clone())
-                        }
+                        flutmax_parser::parser::ParseError::Syntax {
+                            line,
+                            column,
+                            message,
+                        } => (
+                            line.saturating_sub(1),
+                            column.saturating_sub(1),
+                            message.clone(),
+                        ),
+                        flutmax_parser::parser::ParseError::Lex(le) => (
+                            le.line.saturating_sub(1),
+                            le.column.saturating_sub(1),
+                            le.message.clone(),
+                        ),
                     };
                     diagnostics.push(Diagnostic {
                         range: Range {
-                            start: Position { line: line as u32, character: col as u32 },
-                            end: Position { line: line as u32, character: (col + 10) as u32 },
+                            start: Position {
+                                line: line as u32,
+                                character: col as u32,
+                            },
+                            end: Position {
+                                line: line as u32,
+                                character: (col + 10) as u32,
+                            },
                         },
                         severity: Some(DiagnosticSeverity::ERROR),
                         source: Some("flutmax".to_string()),
@@ -55,13 +69,28 @@ impl FlutmaxLsp {
                 // Type check errors on the (partial) AST
                 let type_errors = flutmax_sema::type_check::type_check(&ast);
                 for err in type_errors {
-                    let line = err.span.as_ref().map_or(0, |s| s.start_line.saturating_sub(1));
-                    let col = err.span.as_ref().map_or(0, |s| s.start_column.saturating_sub(1));
-                    let end_col = err.span.as_ref().map_or(col + 10, |s| s.end_column.max(s.start_column));
+                    let line = err
+                        .span
+                        .as_ref()
+                        .map_or(0, |s| s.start_line.saturating_sub(1));
+                    let col = err
+                        .span
+                        .as_ref()
+                        .map_or(0, |s| s.start_column.saturating_sub(1));
+                    let end_col = err
+                        .span
+                        .as_ref()
+                        .map_or(col + 10, |s| s.end_column.max(s.start_column));
                     diagnostics.push(Diagnostic {
                         range: Range {
-                            start: Position { line: line as u32, character: col as u32 },
-                            end: Position { line: line as u32, character: end_col as u32 },
+                            start: Position {
+                                line: line as u32,
+                                character: col as u32,
+                            },
+                            end: Position {
+                                line: line as u32,
+                                character: end_col as u32,
+                            },
                         },
                         severity: Some(DiagnosticSeverity::ERROR),
                         code: Some(NumberOrString::String(err.code.to_string())),
@@ -75,8 +104,14 @@ impl FlutmaxLsp {
                 // Lex error (can't even tokenize)
                 diagnostics.push(Diagnostic {
                     range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 0, character: 10 },
+                        start: Position {
+                            line: 0,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: 0,
+                            character: 10,
+                        },
                     },
                     severity: Some(DiagnosticSeverity::ERROR),
                     source: Some("flutmax".to_string()),
@@ -204,7 +239,10 @@ fn format_objdb_hover(def: &flutmax_objdb::ObjectDef) -> String {
             } else {
                 format!(": {}", port.description.trim())
             };
-            info.push_str(&format!("- `{}` {:?}{}{}\n", port.id, port.port_type, hot, desc));
+            info.push_str(&format!(
+                "- `{}` {:?}{}{}\n",
+                port.id, port.port_type, hot, desc
+            ));
         }
     }
 
@@ -413,10 +451,7 @@ impl LanguageServer for FlutmaxLsp {
             .remove(&params.text_document.uri);
     }
 
-    async fn completion(
-        &self,
-        params: CompletionParams,
-    ) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = &params.text_document_position.text_document.uri;
         let docs = self.documents.read().unwrap();
         let text = match docs.get(uri) {
@@ -585,9 +620,7 @@ impl LanguageServer for FlutmaxLsp {
                 return Ok(Some(SignatureHelp {
                     signatures: vec![SignatureInformation {
                         label,
-                        documentation: Some(Documentation::String(
-                            def.digest.trim().to_string(),
-                        )),
+                        documentation: Some(Documentation::String(def.digest.trim().to_string())),
                         parameters: Some(
                             params
                                 .iter()
@@ -698,12 +731,20 @@ impl LanguageServer for FlutmaxLsp {
             for decl in &ast.in_decls {
                 if decl.name == word {
                     // Find the line containing this in declaration
-                    if let Some(line_num) = find_line_containing(&text, &format!("in {} ({})", decl.index, decl.name)) {
+                    if let Some(line_num) =
+                        find_line_containing(&text, &format!("in {} ({})", decl.index, decl.name))
+                    {
                         return Ok(Some(GotoDefinitionResponse::Scalar(Location {
                             uri: uri.clone(),
                             range: Range {
-                                start: Position { line: line_num as u32, character: 0 },
-                                end: Position { line: line_num as u32, character: 100 },
+                                start: Position {
+                                    line: line_num as u32,
+                                    character: 0,
+                                },
+                                end: Position {
+                                    line: line_num as u32,
+                                    character: 100,
+                                },
                             },
                         })));
                     }
@@ -712,12 +753,20 @@ impl LanguageServer for FlutmaxLsp {
             // Check out_decls
             for decl in &ast.out_decls {
                 if decl.name == word {
-                    if let Some(line_num) = find_line_containing(&text, &format!("out {} ({})", decl.index, decl.name)) {
+                    if let Some(line_num) =
+                        find_line_containing(&text, &format!("out {} ({})", decl.index, decl.name))
+                    {
                         return Ok(Some(GotoDefinitionResponse::Scalar(Location {
                             uri: uri.clone(),
                             range: Range {
-                                start: Position { line: line_num as u32, character: 0 },
-                                end: Position { line: line_num as u32, character: 100 },
+                                start: Position {
+                                    line: line_num as u32,
+                                    character: 0,
+                                },
+                                end: Position {
+                                    line: line_num as u32,
+                                    character: 100,
+                                },
                             },
                         })));
                     }
@@ -955,7 +1004,13 @@ mod tests {
     fn test_get_word_at_position_basic() {
         let text = "wire osc = cycle~(440);";
         // "osc" starts at column 5
-        let word = get_word_at_position(text, Position { line: 0, character: 6 });
+        let word = get_word_at_position(
+            text,
+            Position {
+                line: 0,
+                character: 6,
+            },
+        );
         assert_eq!(word, "osc");
     }
 
@@ -963,7 +1018,13 @@ mod tests {
     fn test_get_word_at_position_tilde_name() {
         let text = "wire osc = cycle~(440);";
         // "cycle~" — cursor on 'c' of cycle
-        let word = get_word_at_position(text, Position { line: 0, character: 11 });
+        let word = get_word_at_position(
+            text,
+            Position {
+                line: 0,
+                character: 11,
+            },
+        );
         assert_eq!(word, "cycle~");
     }
 
@@ -971,10 +1032,22 @@ mod tests {
     fn test_get_word_at_position_at_delimiter() {
         let text = "wire osc = cycle~(440);";
         // On '(' at col 17 — not an ident char, but backward scan finds "cycle~"
-        let word = get_word_at_position(text, Position { line: 0, character: 17 });
+        let word = get_word_at_position(
+            text,
+            Position {
+                line: 0,
+                character: 17,
+            },
+        );
         assert_eq!(word, "cycle~");
         // On ';' at col 22 — backward scan finds ")"? No, ')' is not ident char either
-        let word = get_word_at_position(text, Position { line: 0, character: 22 });
+        let word = get_word_at_position(
+            text,
+            Position {
+                line: 0,
+                character: 22,
+            },
+        );
         assert_eq!(word, "");
     }
 
@@ -982,7 +1055,13 @@ mod tests {
     fn test_get_word_at_position_multiline() {
         let text = "in 0 (freq): float;\nwire osc = cycle~(freq);";
         // line 1, position of "osc"
-        let word = get_word_at_position(text, Position { line: 1, character: 5 });
+        let word = get_word_at_position(
+            text,
+            Position {
+                line: 1,
+                character: 5,
+            },
+        );
         assert_eq!(word, "osc");
     }
 
@@ -990,9 +1069,27 @@ mod tests {
     fn test_get_word_at_position_out_of_bounds() {
         let text = "wire osc = 1;";
         // line out of bounds
-        assert_eq!(get_word_at_position(text, Position { line: 5, character: 0 }), "");
+        assert_eq!(
+            get_word_at_position(
+                text,
+                Position {
+                    line: 5,
+                    character: 0
+                }
+            ),
+            ""
+        );
         // column out of bounds
-        assert_eq!(get_word_at_position(text, Position { line: 0, character: 200 }), "");
+        assert_eq!(
+            get_word_at_position(
+                text,
+                Position {
+                    line: 0,
+                    character: 200
+                }
+            ),
+            ""
+        );
     }
 
     #[test]
@@ -1023,12 +1120,25 @@ mod tests {
             category: "MSP Synthesis".to_string(),
             digest: "Sinusoidal oscillator".to_string(),
             inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: PortType::SignalFloat, is_hot: true, description: "Frequency".to_string() },
-                PortDef { id: 1, port_type: PortType::SignalFloat, is_hot: false, description: "Phase".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: PortType::SignalFloat,
+                    is_hot: true,
+                    description: "Frequency".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: PortType::SignalFloat,
+                    is_hot: false,
+                    description: "Phase".to_string(),
+                },
             ]),
-            outlets: OutletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: PortType::Signal, is_hot: false, description: "Output".to_string() },
-            ]),
+            outlets: OutletSpec::Fixed(vec![PortDef {
+                id: 0,
+                port_type: PortType::Signal,
+                is_hot: false,
+                description: "Output".to_string(),
+            }]),
             args: vec![],
         };
         let hover = format_objdb_hover(&def);
@@ -1036,11 +1146,31 @@ mod tests {
         assert!(hover.contains("Sinusoidal oscillator"));
         assert!(hover.contains("Msp"));
         assert!(hover.contains("MSP Synthesis"));
-        assert!(hover.contains("**Inlets:**"), "should have Inlets section: {}", hover);
-        assert!(hover.contains("Frequency"), "should show inlet description: {}", hover);
-        assert!(hover.contains("Phase"), "should show inlet description: {}", hover);
-        assert!(hover.contains("**Outlets:**"), "should have Outlets section: {}", hover);
-        assert!(hover.contains("Output"), "should show outlet description: {}", hover);
+        assert!(
+            hover.contains("**Inlets:**"),
+            "should have Inlets section: {}",
+            hover
+        );
+        assert!(
+            hover.contains("Frequency"),
+            "should show inlet description: {}",
+            hover
+        );
+        assert!(
+            hover.contains("Phase"),
+            "should show inlet description: {}",
+            hover
+        );
+        assert!(
+            hover.contains("**Outlets:**"),
+            "should have Outlets section: {}",
+            hover
+        );
+        assert!(
+            hover.contains("Output"),
+            "should show outlet description: {}",
+            hover
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1053,7 +1183,10 @@ mod tests {
         let (ast, _) = flutmax_parser::parse_new_with_errors(source).unwrap();
         // The wire "osc" should have a span
         let osc_wire = ast.wires.iter().find(|w| w.name == "osc").unwrap();
-        assert!(osc_wire.span.is_some(), "Wire 'osc' should have a span for go-to-definition");
+        assert!(
+            osc_wire.span.is_some(),
+            "Wire 'osc' should have a span for go-to-definition"
+        );
     }
 
     #[test]
@@ -1092,13 +1225,13 @@ mod tests {
 
         // Verify expected token types
         let types: Vec<TokenType> = tokens.iter().map(|t| t.token_type).collect();
-        assert_eq!(types[0], TokenType::Wire);       // "wire" -> KEYWORD
-        assert_eq!(types[1], TokenType::Identifier);  // "osc" -> VARIABLE
-        // Eq is a delimiter, would be skipped in semantic tokens
+        assert_eq!(types[0], TokenType::Wire); // "wire" -> KEYWORD
+        assert_eq!(types[1], TokenType::Identifier); // "osc" -> VARIABLE
+                                                     // Eq is a delimiter, would be skipped in semantic tokens
         assert_eq!(types[2], TokenType::Eq);
-        assert_eq!(types[3], TokenType::Identifier);  // "cycle" -> might be FUNCTION
-        assert_eq!(types[4], TokenType::Tilde);        // "~"
-        assert_eq!(types[6], TokenType::NumberLit);    // "440" -> NUMBER
+        assert_eq!(types[3], TokenType::Identifier); // "cycle" -> might be FUNCTION
+        assert_eq!(types[4], TokenType::Tilde); // "~"
+        assert_eq!(types[6], TokenType::NumberLit); // "440" -> NUMBER
     }
 
     #[test]
@@ -1125,9 +1258,9 @@ mod tests {
         let source = "in 0 (freq): float;\n";
         let tokens = Lexer::tokenize_with_comments(source).unwrap();
         let types: Vec<TokenType> = tokens.iter().map(|t| t.token_type).collect();
-        assert_eq!(types[0], TokenType::In);    // keyword
+        assert_eq!(types[0], TokenType::In); // keyword
         assert_eq!(types[5], TokenType::Colon);
-        assert_eq!(types[6], TokenType::Float);  // type keyword
+        assert_eq!(types[6], TokenType::Float); // type keyword
     }
 
     #[test]
@@ -1171,7 +1304,13 @@ mod tests {
     fn test_find_call_context_basic() {
         let text = "wire x = cycle~(440);";
         // Cursor right after '(' at col 16
-        let (name, param) = find_call_context(text, Position { line: 0, character: 16 });
+        let (name, param) = find_call_context(
+            text,
+            Position {
+                line: 0,
+                character: 16,
+            },
+        );
         assert_eq!(name, "cycle~");
         assert_eq!(param, 0);
     }
@@ -1180,7 +1319,13 @@ mod tests {
     fn test_find_call_context_second_param() {
         let text = "wire x = biquad~(osc, cutoff);";
         // Cursor after comma, at 'cutoff' — col 22
-        let (name, param) = find_call_context(text, Position { line: 0, character: 22 });
+        let (name, param) = find_call_context(
+            text,
+            Position {
+                line: 0,
+                character: 22,
+            },
+        );
         assert_eq!(name, "biquad~");
         assert_eq!(param, 1);
     }
@@ -1189,7 +1334,13 @@ mod tests {
     fn test_find_call_context_third_param() {
         let text = "wire x = biquad~(osc, cutoff, q);";
         // Cursor at 'q' — col 30
-        let (name, param) = find_call_context(text, Position { line: 0, character: 30 });
+        let (name, param) = find_call_context(
+            text,
+            Position {
+                line: 0,
+                character: 30,
+            },
+        );
         assert_eq!(name, "biquad~");
         assert_eq!(param, 2);
     }
@@ -1197,7 +1348,13 @@ mod tests {
     #[test]
     fn test_find_call_context_no_paren() {
         let text = "wire x = osc;";
-        let (name, param) = find_call_context(text, Position { line: 0, character: 10 });
+        let (name, param) = find_call_context(
+            text,
+            Position {
+                line: 0,
+                character: 10,
+            },
+        );
         assert_eq!(name, "");
         assert_eq!(param, 0);
     }
@@ -1206,7 +1363,13 @@ mod tests {
     fn test_find_call_context_dotted_name() {
         let text = "wire x = jit.gl.render(ctx);";
         // Cursor inside the parens (after '('), at 'c' of ctx = character 23
-        let (name, param) = find_call_context(text, Position { line: 0, character: 23 });
+        let (name, param) = find_call_context(
+            text,
+            Position {
+                line: 0,
+                character: 23,
+            },
+        );
         assert_eq!(name, "jit.gl.render");
         assert_eq!(param, 0);
     }

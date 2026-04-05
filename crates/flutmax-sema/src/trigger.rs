@@ -79,10 +79,9 @@ pub fn detect_fanouts(graph: &PatchGraph) -> Vec<Fanout> {
         .filter(|(_, dests)| dests.len() >= 2)
         .filter(|(_, dests)| {
             // No trigger needed if all destinations are signal
-            !dests.iter().all(|(dest_id, _)| {
-                graph.find_node(dest_id)
-                    .map_or(false, |n| n.is_signal)
-            })
+            !dests
+                .iter()
+                .all(|(dest_id, _)| graph.find_node(dest_id).is_some_and(|n| n.is_signal))
         })
         .map(|((source_id, source_outlet), destinations)| Fanout {
             source_id,
@@ -127,7 +126,8 @@ pub fn insert_triggers(graph: &mut PatchGraph) {
         let mut args: Vec<String> = vec!["f".into(); n];
         for (j, (dest_id, dest_inlet)) in fanout.destinations.iter().enumerate() {
             let outlet_idx = n - 1 - j;
-            let dest_name = graph.find_node(dest_id)
+            let dest_name = graph
+                .find_node(dest_id)
                 .map(|node| node.object_name.as_str())
                 .unwrap_or("");
             args[outlet_idx] = determine_outlet_type(dest_name, *dest_inlet)
@@ -140,7 +140,8 @@ pub fn insert_triggers(graph: &mut PatchGraph) {
             args,
             num_inlets: 1,
             num_outlets,
-            is_signal: false, varname: None,
+            is_signal: false,
+            varname: None,
             hot_inlets: vec![true],
             purity: NodePurity::Pure,
             attrs: vec![],
@@ -227,8 +228,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -238,8 +241,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -249,8 +254,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -330,11 +337,7 @@ mod tests {
         let mut g = make_simple_fanout_graph();
         insert_triggers(&mut g);
 
-        let trigger_node = g
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "trigger")
-            .unwrap();
+        let trigger_node = g.nodes.iter().find(|n| n.object_name == "trigger").unwrap();
 
         let from_trigger: Vec<&PatchEdge> = g
             .edges
@@ -370,8 +373,10 @@ mod tests {
             args: vec!["440".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -381,8 +386,10 @@ mod tests {
             args: vec![],
             num_inlets: 6,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -392,8 +399,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -428,8 +437,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -439,8 +450,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -474,8 +487,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -486,8 +501,10 @@ mod tests {
                 args: vec![],
                 num_inlets: 1,
                 num_outlets: 0,
-                is_signal: false, varname: None,
-                hot_inlets: vec![], purity: NodePurity::Unknown,
+                is_signal: false,
+                varname: None,
+                hot_inlets: vec![],
+                purity: NodePurity::Unknown,
                 attrs: vec![],
                 code: None,
             });
@@ -496,8 +513,8 @@ mod tests {
                 source_outlet: 0,
                 dest_id: (*name).into(),
                 dest_inlet: 0,
-            is_feedback: false,
-            order: None,
+                is_feedback: false,
+                order: None,
             });
         }
 
@@ -538,8 +555,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -549,8 +568,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -586,8 +607,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -597,8 +620,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -609,8 +634,10 @@ mod tests {
                 args: vec![],
                 num_inlets: 1,
                 num_outlets: 0,
-                is_signal: false, varname: None,
-                hot_inlets: vec![], purity: NodePurity::Unknown,
+                is_signal: false,
+                varname: None,
+                hot_inlets: vec![],
+                purity: NodePurity::Unknown,
                 attrs: vec![],
                 code: None,
             });
@@ -651,7 +678,11 @@ mod tests {
         });
 
         let fanouts = detect_fanouts(&g);
-        assert_eq!(fanouts.len(), 2, "Two independent fanouts should be detected");
+        assert_eq!(
+            fanouts.len(),
+            2,
+            "Two independent fanouts should be detected"
+        );
 
         insert_triggers(&mut g);
         let trigger_nodes: Vec<&PatchNode> = g
@@ -659,7 +690,11 @@ mod tests {
             .iter()
             .filter(|n| n.object_name == "trigger")
             .collect();
-        assert_eq!(trigger_nodes.len(), 2, "Two trigger nodes should be inserted");
+        assert_eq!(
+            trigger_nodes.len(),
+            2,
+            "Two trigger nodes should be inserted"
+        );
     }
 
     #[test]
@@ -674,8 +709,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 2,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -686,8 +723,10 @@ mod tests {
             args: vec!["440".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -705,7 +744,8 @@ mod tests {
                 num_outlets: 1,
                 is_signal: name.starts_with("sig"),
                 varname: None,
-                hot_inlets: vec![], purity: NodePurity::Unknown,
+                hot_inlets: vec![],
+                purity: NodePurity::Unknown,
                 attrs: vec![],
                 code: None,
             });
@@ -761,8 +801,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -775,8 +817,10 @@ mod tests {
                 args: vec![],
                 num_inlets: 1,
                 num_outlets: 0,
-                is_signal: false, varname: None,
-                hot_inlets: vec![], purity: NodePurity::Unknown,
+                is_signal: false,
+                varname: None,
+                hot_inlets: vec![],
+                purity: NodePurity::Unknown,
                 attrs: vec![],
                 code: None,
             });
@@ -785,8 +829,8 @@ mod tests {
                 source_outlet: 0,
                 dest_id: name,
                 dest_inlet: 0,
-            is_feedback: false,
-            order: None,
+                is_feedback: false,
+                order: None,
             });
         }
 
@@ -795,11 +839,7 @@ mod tests {
         assert_eq!(fanouts[0].destinations.len(), 10);
 
         insert_triggers(&mut g);
-        let trigger_node = g
-            .nodes
-            .iter()
-            .find(|n| n.object_name == "trigger")
-            .unwrap();
+        let trigger_node = g.nodes.iter().find(|n| n.object_name == "trigger").unwrap();
         assert_eq!(trigger_node.num_outlets, 10);
 
         // 10 output edges from trigger
@@ -823,42 +863,24 @@ mod tests {
             determine_outlet_type("unknown_obj", 0),
             TriggerOutletType::Float
         );
-        assert_eq!(
-            determine_outlet_type("print", 0),
-            TriggerOutletType::Float
-        );
+        assert_eq!(determine_outlet_type("print", 0), TriggerOutletType::Float);
     }
 
     #[test]
     fn test_determine_outlet_type_float() {
-        assert_eq!(
-            determine_outlet_type("flonum", 0),
-            TriggerOutletType::Float
-        );
-        assert_eq!(
-            determine_outlet_type("cycle~", 0),
-            TriggerOutletType::Float
-        );
+        assert_eq!(determine_outlet_type("flonum", 0), TriggerOutletType::Float);
+        assert_eq!(determine_outlet_type("cycle~", 0), TriggerOutletType::Float);
     }
 
     #[test]
     fn test_determine_outlet_type_int() {
-        assert_eq!(
-            determine_outlet_type("number", 0),
-            TriggerOutletType::Int
-        );
+        assert_eq!(determine_outlet_type("number", 0), TriggerOutletType::Int);
     }
 
     #[test]
     fn test_determine_outlet_type_list() {
-        assert_eq!(
-            determine_outlet_type("pack", 0),
-            TriggerOutletType::List
-        );
-        assert_eq!(
-            determine_outlet_type("unpack", 2),
-            TriggerOutletType::List
-        );
+        assert_eq!(determine_outlet_type("pack", 0), TriggerOutletType::List);
+        assert_eq!(determine_outlet_type("unpack", 2), TriggerOutletType::List);
     }
 
     #[test]
@@ -880,8 +902,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 2,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -891,8 +915,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -902,8 +928,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -926,10 +954,6 @@ mod tests {
         });
 
         let fanouts = detect_fanouts(&g);
-        assert_eq!(
-            fanouts.len(),
-            0,
-            "Different outlets should not be a fanout"
-        );
+        assert_eq!(fanouts.len(), 0, "Different outlets should not be a fanout");
     }
 }

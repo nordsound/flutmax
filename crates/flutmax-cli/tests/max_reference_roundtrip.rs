@@ -85,7 +85,9 @@ impl LogicalGraph {
         counts
     }
 
-    fn edge_base_counts(edges: &BTreeSet<LogicalEdge>) -> BTreeMap<(String, u32, String, u32), usize> {
+    fn edge_base_counts(
+        edges: &BTreeSet<LogicalEdge>,
+    ) -> BTreeMap<(String, u32, String, u32), usize> {
         let mut counts = BTreeMap::new();
         for edge in edges {
             let key = (
@@ -142,7 +144,9 @@ fn split_respecting_quotes(text: &str) -> Vec<String> {
             current.push(ch);
         }
     }
-    if !current.is_empty() { parts.push(current); }
+    if !current.is_empty() {
+        parts.push(current);
+    }
     parts
 }
 
@@ -165,8 +169,14 @@ fn normalize_object_text(text: &str) -> String {
     // 2. Digit-starting names: `2input-router` (valid Max abstractions, not in grammar)
     // 3. Non-tilde dotted identifiers with operator segments: `jit.*`, `jit.-`
     //    (flutmax grammar only allows operator segments in tilde identifiers like mc.+~)
-    let name = if name.chars().next().map_or(false, |c| c.is_ascii_digit() || c == '-') &&
-                  name.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == 'e' || c == 'E') {
+    let name = if name
+        .chars()
+        .next()
+        .map_or(false, |c| c.is_ascii_digit() || c == '-')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == 'e' || c == 'E')
+    {
         // Pure numeric object name — treat as a literal arg of newobj
         result_parts.push("newobj".to_string());
         result_parts.push(normalize_trailing_dot(&name));
@@ -186,7 +196,9 @@ fn normalize_object_text(text: &str) -> String {
     } else if !name.ends_with('~') && name.contains('.') {
         // Non-tilde dotted identifier: check for operator segments
         let has_operator_segment = name.split('.').skip(1).any(|seg| {
-            seg.chars().next().map_or(false, |c| "*/%!<>=+-&|^".contains(c))
+            seg.chars()
+                .next()
+                .map_or(false, |c| "*/%!<>=+-&|^".contains(c))
         });
         if has_operator_segment {
             // e.g., jit.*, jit.- — fallback to newobj
@@ -221,7 +233,7 @@ fn normalize_object_text(text: &str) -> String {
         // Both decompiler and codegen may handle quotes differently, but the
         // semantic content is the same.
         let stripped = if p.starts_with('"') && p.ends_with('"') && p.len() >= 2 {
-            &p[1..p.len()-1]
+            &p[1..p.len() - 1]
         } else {
             p.as_str()
         };
@@ -344,7 +356,9 @@ fn check_code_field_preservation(orig_json: &str, regen_json: &str) -> Option<St
     // Match by maxclass (v8.codebox / codebox).
     let mut missing = Vec::new();
     for (maxclass, code) in &orig_codes {
-        let found = regen_codes.iter().any(|(mc, rc)| mc == maxclass && rc == code);
+        let found = regen_codes
+            .iter()
+            .any(|(mc, rc)| mc == maxclass && rc == code);
         if !found {
             let preview: String = code.chars().take(60).collect();
             missing.push(format!("{} code lost: \"{}...\"", maxclass, preview));
@@ -393,14 +407,27 @@ fn is_roundtrippable_varname(vn: &str) -> bool {
     if !first.is_ascii_alphabetic() && first != '_' {
         return false;
     }
-    if !vn.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+    if !vn
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
         return false;
     }
     // Reserved keywords get w_ prefix during sanitization
     if matches!(
         vn,
-        "wire" | "in" | "out" | "feedback" | "state" | "msg"
-            | "signal" | "float" | "int" | "bang" | "list" | "symbol"
+        "wire"
+            | "in"
+            | "out"
+            | "feedback"
+            | "state"
+            | "msg"
+            | "signal"
+            | "float"
+            | "int"
+            | "bang"
+            | "list"
+            | "symbol"
     ) {
         return false;
     }
@@ -475,7 +502,8 @@ fn find_unnecessary_triggers(maxpat_json: &str) -> Vec<String> {
     };
 
     // Build id → text map and identify trigger IDs
-    let mut id_to_text: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut id_to_text: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     let mut trigger_ids: Vec<String> = Vec::new();
     for bw in boxes {
         let b = &bw["box"];
@@ -498,10 +526,18 @@ fn find_unnecessary_triggers(maxpat_json: &str) -> Vec<String> {
         let mut has_dest = false;
         for lw in lines {
             let pl = &lw["patchline"];
-            let src_id = pl["source"].as_array().and_then(|a| a[0].as_str()).unwrap_or("");
-            if src_id != tid { continue; }
+            let src_id = pl["source"]
+                .as_array()
+                .and_then(|a| a[0].as_str())
+                .unwrap_or("");
+            if src_id != tid {
+                continue;
+            }
             has_dest = true;
-            let dst_id = pl["destination"].as_array().and_then(|a| a[0].as_str()).unwrap_or("");
+            let dst_id = pl["destination"]
+                .as_array()
+                .and_then(|a| a[0].as_str())
+                .unwrap_or("");
             let dst_text = id_to_text.get(dst_id).map(|s| s.as_str()).unwrap_or("");
             let dst_name = dst_text.split_whitespace().next().unwrap_or("");
             if !dst_name.ends_with('~') {
@@ -527,12 +563,8 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
         serde_json::from_str(maxpat_json).expect("failed to parse .maxpat JSON");
 
     let patcher = &root["patcher"];
-    let boxes = patcher["boxes"]
-        .as_array()
-        .expect("missing boxes array");
-    let lines = patcher["lines"]
-        .as_array()
-        .expect("missing lines array");
+    let boxes = patcher["boxes"].as_array().expect("missing boxes array");
+    let lines = patcher["lines"].as_array().expect("missing lines array");
 
     // First pass: compute the raw text for each box and count occurrences.
     // Skip comment boxes — they are non-functional (display only) and the
@@ -705,12 +737,19 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
         trigger_ids: &BTreeSet<String>,
         depth: usize,
     ) -> Vec<(String, u32)> {
-        if depth > 20 { return Vec::new(); }
+        if depth > 20 {
+            return Vec::new();
+        }
         let mut results = Vec::new();
         if let Some(sources) = trigger_incoming.get(trigger_id) {
             for (src_id, src_outlet) in sources {
                 if trigger_ids.contains(src_id) {
-                    results.extend(resolve_sources(src_id, trigger_incoming, trigger_ids, depth + 1));
+                    results.extend(resolve_sources(
+                        src_id,
+                        trigger_incoming,
+                        trigger_ids,
+                        depth + 1,
+                    ));
                 } else {
                     results.push((src_id.clone(), *src_outlet));
                 }
@@ -726,13 +765,22 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
         trigger_ids: &BTreeSet<String>,
         depth: usize,
     ) -> Vec<(String, u32)> {
-        if depth > 20 { return Vec::new(); }
+        if depth > 20 {
+            return Vec::new();
+        }
         let mut results = Vec::new();
         for ((tid, _outlet), dests) in trigger_outgoing {
-            if tid != trigger_id { continue; }
+            if tid != trigger_id {
+                continue;
+            }
             for (dest_id, dest_inlet) in dests {
                 if trigger_ids.contains(dest_id) {
-                    results.extend(resolve_dests(dest_id, trigger_outgoing, trigger_ids, depth + 1));
+                    results.extend(resolve_dests(
+                        dest_id,
+                        trigger_outgoing,
+                        trigger_ids,
+                        depth + 1,
+                    ));
                 } else {
                     results.push((dest_id.clone(), *dest_inlet));
                 }
@@ -744,7 +792,9 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
     // For each trigger, connect all ultimate sources to all ultimate destinations.
     let mut processed_triggers = BTreeSet::new();
     for trigger_id in &trigger_ids {
-        if processed_triggers.contains(trigger_id) { continue; }
+        if processed_triggers.contains(trigger_id) {
+            continue;
+        }
         processed_triggers.insert(trigger_id.clone());
 
         let sources = resolve_sources(trigger_id, &trigger_incoming, &trigger_ids, 0);
@@ -851,8 +901,15 @@ fn has_subpatchers(json_str: &str) -> bool {
             }
 
             // Check for codebox objects (need multi-file for code extraction)
-            if matches!(box_obj["maxclass"].as_str(), Some("v8.codebox") | Some("codebox")) {
-                if box_obj.get("code").and_then(|c| c.as_str()).map_or(false, |c| !c.is_empty()) {
+            if matches!(
+                box_obj["maxclass"].as_str(),
+                Some("v8.codebox") | Some("codebox")
+            ) {
+                if box_obj
+                    .get("code")
+                    .and_then(|c| c.as_str())
+                    .map_or(false, |c| !c.is_empty())
+                {
                     return true;
                 }
             }
@@ -874,15 +931,18 @@ fn has_subpatchers(json_str: &str) -> bool {
 fn decompile_multi_and_register(
     json_str: &str,
     base_name: &str,
-) -> Result<(
-    String,
-    flutmax_sema::registry::AbstractionRegistry,
-    std::collections::HashMap<String, String>,
-    std::collections::HashSet<String>,
-    std::collections::HashMap<String, String>,
-    std::collections::HashSet<String>,
-    std::collections::HashMap<String, String>,
-), RoundtripResult> {
+) -> Result<
+    (
+        String,
+        flutmax_sema::registry::AbstractionRegistry,
+        std::collections::HashMap<String, String>,
+        std::collections::HashSet<String>,
+        std::collections::HashMap<String, String>,
+        std::collections::HashSet<String>,
+        std::collections::HashMap<String, String>,
+    ),
+    RoundtripResult,
+> {
     let result = match flutmax_decompile::decompile_multi(json_str, base_name) {
         Ok(r) => r,
         Err(e) => return Err(RoundtripResult::Skip(format!("decompile_multi: {}", e))),
@@ -891,7 +951,8 @@ fn decompile_multi_and_register(
     let mut registry = flutmax_sema::registry::AbstractionRegistry::new();
 
     // Collect RNBO source files
-    let mut rnbo_sources: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut rnbo_sources: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     for filename in &result.rnbo_patchers {
         if let Some(source) = result.files.get(filename) {
             rnbo_sources.insert(filename.clone(), source.clone());
@@ -899,7 +960,8 @@ fn decompile_multi_and_register(
     }
 
     // Collect gen~ source files
-    let mut gen_sources: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut gen_sources: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     for filename in &result.gen_patchers {
         if let Some(source) = result.files.get(filename) {
             gen_sources.insert(filename.clone(), source.clone());
@@ -926,10 +988,22 @@ fn decompile_multi_and_register(
 
     let main_source = match result.files.get(&result.main_file) {
         Some(s) => s.clone(),
-        None => return Err(RoundtripResult::Skip("no main file in decompile result".into())),
+        None => {
+            return Err(RoundtripResult::Skip(
+                "no main file in decompile result".into(),
+            ))
+        }
     };
 
-    Ok((main_source, registry, result.code_files, result.rnbo_patchers, rnbo_sources, result.gen_patchers, gen_sources))
+    Ok((
+        main_source,
+        registry,
+        result.code_files,
+        result.rnbo_patchers,
+        rnbo_sources,
+        result.gen_patchers,
+        gen_sources,
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -964,22 +1038,35 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
         .unwrap_or("main");
 
     // 4. Decompile and compile — route based on subpatcher presence
-    let (main_source, registry, code_files, rnbo_patchers, rnbo_sources, gen_patchers, gen_sources) = if has_subpatchers(&json_str) {
-        // Use multi-file decompile for subpatcher patches
-        match decompile_multi_and_register(&json_str, base_name) {
-            Ok((source, reg, cf, rp, rs, gp, gs)) => (source, Some(reg), cf, rp, rs, gp, gs),
-            Err(result) => return result,
-        }
-    } else {
-        // Use simple decompile for flat patches
-        match flutmax_decompile::decompile(&json_str) {
-            Ok(s) => (s, None, std::collections::HashMap::new(), std::collections::HashSet::new(), std::collections::HashMap::new(), std::collections::HashSet::new(), std::collections::HashMap::new()),
-            Err(e) => return RoundtripResult::Skip(format!("decompile: {}", e)),
-        }
-    };
+    let (main_source, registry, code_files, rnbo_patchers, rnbo_sources, gen_patchers, gen_sources) =
+        if has_subpatchers(&json_str) {
+            // Use multi-file decompile for subpatcher patches
+            match decompile_multi_and_register(&json_str, base_name) {
+                Ok((source, reg, cf, rp, rs, gp, gs)) => (source, Some(reg), cf, rp, rs, gp, gs),
+                Err(result) => return result,
+            }
+        } else {
+            // Use simple decompile for flat patches
+            match flutmax_decompile::decompile(&json_str) {
+                Ok(s) => (
+                    s,
+                    None,
+                    std::collections::HashMap::new(),
+                    std::collections::HashSet::new(),
+                    std::collections::HashMap::new(),
+                    std::collections::HashSet::new(),
+                    std::collections::HashMap::new(),
+                ),
+                Err(e) => return RoundtripResult::Skip(format!("decompile: {}", e)),
+            }
+        };
 
     // 5. Compile (with registry and code_files for codebox support)
-    let code_files_ref = if code_files.is_empty() { None } else { Some(&code_files) };
+    let code_files_ref = if code_files.is_empty() {
+        None
+    } else {
+        Some(&code_files)
+    };
     let regenerated_json = match flutmax_cli::compile_with_registry_and_code_files(
         &main_source,
         registry.as_ref(),
@@ -1060,11 +1147,15 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
                             Ok(regen_rnbo_json) => {
                                 // Compare logical graphs
                                 let orig_str = serde_json::to_string(&orig_rnbo).unwrap();
-                                let orig_rnbo_graph = match std::panic::catch_unwind(|| extract_logical_graph(&orig_str)) {
+                                let orig_rnbo_graph = match std::panic::catch_unwind(|| {
+                                    extract_logical_graph(&orig_str)
+                                }) {
                                     Ok(g) => g,
                                     Err(_) => continue, // Skip if graph extraction panics
                                 };
-                                let regen_rnbo_graph = match std::panic::catch_unwind(|| extract_logical_graph(&regen_rnbo_json)) {
+                                let regen_rnbo_graph = match std::panic::catch_unwind(|| {
+                                    extract_logical_graph(&regen_rnbo_json)
+                                }) {
                                     Ok(g) => g,
                                     Err(_) => {
                                         return RoundtripResult::Mismatch(format!(
@@ -1074,13 +1165,15 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
                                 };
                                 if !orig_rnbo_graph.eq_tolerant(&regen_rnbo_graph) {
                                     return RoundtripResult::Mismatch(format!(
-                                        "RNBO subpatcher '{}' graph mismatch", rnbo_name
+                                        "RNBO subpatcher '{}' graph mismatch",
+                                        rnbo_name
                                     ));
                                 }
                             }
                             Err(e) => {
                                 return RoundtripResult::CompileFail(format!(
-                                    "RNBO compile {}: {}", rnbo_name, e
+                                    "RNBO compile {}: {}",
+                                    rnbo_name, e
                                 ));
                             }
                         }
@@ -1095,15 +1188,19 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
             let orig_boxes = orig_value["patcher"]["boxes"].as_array().unwrap();
 
             // Collect all gen~ embedded patchers from original
-            let orig_gen_patchers: Vec<serde_json::Value> = orig_boxes.iter().filter_map(|bw| {
-                let b = &bw["box"];
-                if let Some(patcher) = b.get("patcher") {
-                    if patcher.get("classnamespace").and_then(|v| v.as_str()) == Some("dsp.gen") {
-                        return Some(serde_json::json!({"patcher": patcher}));
+            let orig_gen_patchers: Vec<serde_json::Value> = orig_boxes
+                .iter()
+                .filter_map(|bw| {
+                    let b = &bw["box"];
+                    if let Some(patcher) = b.get("patcher") {
+                        if patcher.get("classnamespace").and_then(|v| v.as_str()) == Some("dsp.gen")
+                        {
+                            return Some(serde_json::json!({"patcher": patcher}));
+                        }
                     }
-                }
-                None
-            }).collect();
+                    None
+                })
+                .collect();
 
             for gen_filename in &gen_patchers {
                 let gen_name = gen_filename.trim_end_matches(".flutmax");
@@ -1111,11 +1208,14 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
                 if let Some(gen_source) = gen_sources.get(gen_filename) {
                     match flutmax_cli::compile_gen(gen_source) {
                         Ok(regen_gen_json) => {
-                            let regen_gen_graph = match std::panic::catch_unwind(|| extract_logical_graph(&regen_gen_json)) {
+                            let regen_gen_graph = match std::panic::catch_unwind(|| {
+                                extract_logical_graph(&regen_gen_json)
+                            }) {
                                 Ok(g) => g,
                                 Err(_) => {
                                     return RoundtripResult::Mismatch(format!(
-                                        "gen~ '{}' graph extraction panicked on regenerated output", gen_name
+                                        "gen~ '{}' graph extraction panicked on regenerated output",
+                                        gen_name
                                     ));
                                 }
                             };
@@ -1124,7 +1224,9 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
                             let mut matched = false;
                             for orig_gen in &orig_gen_patchers {
                                 let orig_str = serde_json::to_string(orig_gen).unwrap();
-                                let orig_gen_graph = match std::panic::catch_unwind(|| extract_logical_graph(&orig_str)) {
+                                let orig_gen_graph = match std::panic::catch_unwind(|| {
+                                    extract_logical_graph(&orig_str)
+                                }) {
                                     Ok(g) => g,
                                     Err(_) => continue,
                                 };
@@ -1138,30 +1240,48 @@ fn test_single_roundtrip(path: &str) -> RoundtripResult {
                                 // Detailed diff against first original gen~ for debugging
                                 let detail = if let Some(first_orig) = orig_gen_patchers.first() {
                                     let orig_str = serde_json::to_string(first_orig).unwrap();
-                                    if let Ok(orig_g) = std::panic::catch_unwind(|| extract_logical_graph(&orig_str)) {
+                                    if let Ok(orig_g) = std::panic::catch_unwind(|| {
+                                        extract_logical_graph(&orig_str)
+                                    }) {
                                         let orig_ec = LogicalGraph::edge_base_counts(&orig_g.edges);
-                                        let regen_ec = LogicalGraph::edge_base_counts(&regen_gen_graph.edges);
-                                        let missing_e: Vec<_> = orig_ec.iter()
+                                        let regen_ec =
+                                            LogicalGraph::edge_base_counts(&regen_gen_graph.edges);
+                                        let missing_e: Vec<_> = orig_ec
+                                            .iter()
                                             .filter(|(k, v)| regen_ec.get(k).unwrap_or(&0) < *v)
                                             .take(5)
-                                            .map(|(k, _)| format!("{}:{}->{}:{}", k.0, k.1, k.2, k.3))
+                                            .map(|(k, _)| {
+                                                format!("{}:{}->{}:{}", k.0, k.1, k.2, k.3)
+                                            })
                                             .collect();
-                                        let extra_e: Vec<_> = regen_ec.iter()
+                                        let extra_e: Vec<_> = regen_ec
+                                            .iter()
                                             .filter(|(k, v)| orig_ec.get(k).unwrap_or(&0) < *v)
                                             .take(5)
-                                            .map(|(k, _)| format!("{}:{}->{}:{}", k.0, k.1, k.2, k.3))
+                                            .map(|(k, _)| {
+                                                format!("{}:{}->{}:{}", k.0, k.1, k.2, k.3)
+                                            })
                                             .collect();
-                                        format!("missing_edges={:?}, extra_edges={:?}", missing_e, extra_e)
-                                    } else { "graph extraction failed".to_string() }
-                                } else { "no original gen~ patchers".to_string() };
+                                        format!(
+                                            "missing_edges={:?}, extra_edges={:?}",
+                                            missing_e, extra_e
+                                        )
+                                    } else {
+                                        "graph extraction failed".to_string()
+                                    }
+                                } else {
+                                    "no original gen~ patchers".to_string()
+                                };
                                 return RoundtripResult::Mismatch(format!(
-                                    "gen~ '{}': {}", gen_name, detail
+                                    "gen~ '{}': {}",
+                                    gen_name, detail
                                 ));
                             }
                         }
                         Err(e) => {
                             return RoundtripResult::CompileFail(format!(
-                                "gen~ compile {}: {}", gen_name, e
+                                "gen~ compile {}: {}",
+                                gen_name, e
                             ));
                         }
                     }
@@ -1330,10 +1450,7 @@ fn run_roundtrip_suite(label: &str, dir: &str) -> SuiteResults {
             eprintln!("  {}: {}", path, short_reason);
         }
         if compile_fail_details.len() > 50 {
-            eprintln!(
-                "  ... and {} more",
-                compile_fail_details.len() - 50
-            );
+            eprintln!("  ... and {} more", compile_fail_details.len() - 50);
         }
     }
 
@@ -1477,10 +1594,7 @@ fn user_patches_roundtrip() {
     }
 
     // Known mismatches in user patches (argument loss, cycle reordering)
-    let user_known = vec![
-        "max_mixer/mixer.maxpat",
-        "max_mixer/mixer_test.maxpat",
-    ];
+    let user_known = vec!["max_mixer/mixer.maxpat", "max_mixer/mixer_test.maxpat"];
     let unexpected_user: Vec<_> = results
         .mismatch_details
         .iter()
@@ -1521,8 +1635,10 @@ fn codebox_code_field_roundtrip() {
 
     // Step 1: Decompile with code extraction
     let result = flutmax_decompile::decompile_multi(&json_str, base_name).unwrap();
-    assert!(!result.code_files.is_empty(),
-        "decompile should extract code files from v8.codebox");
+    assert!(
+        !result.code_files.is_empty(),
+        "decompile should extract code files from v8.codebox"
+    );
 
     // Step 2: Parse and register subpatchers
     let mut registry = flutmax_sema::registry::AbstractionRegistry::new();
@@ -1542,7 +1658,8 @@ fn codebox_code_field_roundtrip() {
         main_source,
         Some(&registry),
         Some(&result.code_files),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Step 4: Verify code field is present in regenerated JSON
     let regen_val: serde_json::Value = serde_json::from_str(&regenerated).unwrap();
@@ -1553,12 +1670,24 @@ fn codebox_code_field_roundtrip() {
     eprintln!("  original code fields: {}", orig_codes.len());
     eprintln!("  regenerated code fields: {}", regen_codes.len());
 
-    assert_eq!(orig_codes.len(), regen_codes.len(),
-        "code field count mismatch: orig={}, regen={}", orig_codes.len(), regen_codes.len());
+    assert_eq!(
+        orig_codes.len(),
+        regen_codes.len(),
+        "code field count mismatch: orig={}, regen={}",
+        orig_codes.len(),
+        regen_codes.len()
+    );
 
     for (maxclass, orig_code) in &orig_codes {
-        let found = regen_codes.iter().any(|(mc, rc)| mc == maxclass && rc == orig_code);
-        assert!(found, "code not preserved for {}: {:?}...", maxclass, &orig_code[..orig_code.len().min(60)]);
+        let found = regen_codes
+            .iter()
+            .any(|(mc, rc)| mc == maxclass && rc == orig_code);
+        assert!(
+            found,
+            "code not preserved for {}: {:?}...",
+            maxclass,
+            &orig_code[..orig_code.len().min(60)]
+        );
     }
 }
 
@@ -1592,7 +1721,8 @@ fn real_patches_roundtrip() {
         // #2Controls — template-prefixed abstraction name
         "slegroux_spadTranche.maxpat",
     ];
-    let unexpected: Vec<_> = results.mismatch_details
+    let unexpected: Vec<_> = results
+        .mismatch_details
         .iter()
         .filter(|(path, _)| !real_known.iter().any(|k| path.contains(k)))
         .collect();
@@ -1781,7 +1911,12 @@ fn find_ast_diff(legacy: &flutmax_ast::Program, new: &flutmax_ast::Program) -> S
             new.out_decls.len()
         );
     }
-    for (i, (ld, nd)) in legacy.out_decls.iter().zip(new.out_decls.iter()).enumerate() {
+    for (i, (ld, nd)) in legacy
+        .out_decls
+        .iter()
+        .zip(new.out_decls.iter())
+        .enumerate()
+    {
         if ld != nd {
             return format!("out_decls[{}]: {:?} vs {:?}", i, ld, nd);
         }
@@ -1789,11 +1924,7 @@ fn find_ast_diff(legacy: &flutmax_ast::Program, new: &flutmax_ast::Program) -> S
 
     // Compare wires
     if legacy.wires.len() != new.wires.len() {
-        return format!(
-            "wires count: {} vs {}",
-            legacy.wires.len(),
-            new.wires.len()
-        );
+        return format!("wires count: {} vs {}", legacy.wires.len(), new.wires.len());
     }
     for (i, (lw, nw)) in legacy.wires.iter().zip(new.wires.iter()).enumerate() {
         if lw.name != nw.name {

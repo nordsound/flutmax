@@ -28,8 +28,13 @@ fn read_multi_file_example(name: &str) -> String {
     let path = workspace_root()
         .join("examples/synths/multi_file_synth")
         .join(name);
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("failed to read multi-file example {}: {}", path.display(), e))
+    std::fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "failed to read multi-file example {}: {}",
+            path.display(),
+            e
+        )
+    })
 }
 
 /// Compile a .flutmax source string, validate the output, and return the JSON.
@@ -79,11 +84,7 @@ fn compile_and_validate(source: &str, label: &str) -> String {
     let boxes = parsed["patcher"]["boxes"]
         .as_array()
         .expect("missing boxes array");
-    assert!(
-        !boxes.is_empty(),
-        "boxes should not be empty for {}",
-        label
-    );
+    assert!(!boxes.is_empty(), "boxes should not be empty for {}", label);
 
     json
 }
@@ -119,7 +120,10 @@ fn compile_subtractive_synth() {
             .map(|t| t.starts_with("phasor~"))
             .unwrap_or(false)
     });
-    assert!(has_phasor, "subtractive synth should contain phasor~ objects");
+    assert!(
+        has_phasor,
+        "subtractive synth should contain phasor~ objects"
+    );
 }
 
 #[test]

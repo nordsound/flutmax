@@ -1,8 +1,8 @@
+pub mod lexer;
 #[cfg(any(feature = "tree-sitter-legacy", test))]
 pub mod parse;
-pub mod tokens;
-pub mod lexer;
 pub mod parser;
+pub mod tokens;
 
 /// Error type for the public parse API.
 #[derive(Debug)]
@@ -17,7 +17,11 @@ pub enum ParseError {
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::InvalidSyntax { message, line, column } => {
+            ParseError::InvalidSyntax {
+                message,
+                line,
+                column,
+            } => {
                 write!(f, "Syntax error at {}:{}: {}", line, column, message)
             }
         }
@@ -54,6 +58,8 @@ pub fn parse_new(source: &str) -> Result<flutmax_ast::Program, parser::ParseErro
 
 /// Parse with error recovery: returns a (possibly partial) AST and all errors.
 /// The parser skips to the next `;` on error and continues, collecting all diagnostics.
-pub fn parse_new_with_errors(source: &str) -> Result<(flutmax_ast::Program, Vec<parser::ParseError>), parser::ParseError> {
+pub fn parse_new_with_errors(
+    source: &str,
+) -> Result<(flutmax_ast::Program, Vec<parser::ParseError>), parser::ParseError> {
     parser::FlutmaxParser::parse_with_errors(source)
 }

@@ -91,11 +91,7 @@ fn compile_and_validate(source: &str, label: &str) {
     let boxes = parsed["patcher"]["boxes"]
         .as_array()
         .expect("missing boxes array");
-    assert!(
-        !boxes.is_empty(),
-        "boxes should not be empty for {}",
-        label
-    );
+    assert!(!boxes.is_empty(), "boxes should not be empty for {}", label);
 }
 
 // ─── Existing fixtures ───

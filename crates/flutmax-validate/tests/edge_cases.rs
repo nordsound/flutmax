@@ -434,9 +434,10 @@ fn validate_wrong_inlet_count() {
     }"#;
     let report = validate_str(json, "wrong_inlets.maxpat");
     // Should detect inlet count mismatch for cycle~ (expected 2, got 5)
-    let has_inlet_error = report.errors.iter().any(|e| {
-        e.severity == Severity::Error && e.message.contains("inlet")
-    });
+    let has_inlet_error = report
+        .errors
+        .iter()
+        .any(|e| e.severity == Severity::Error && e.message.contains("inlet"));
     assert!(
         has_inlet_error,
         "should detect inlet count mismatch, got: {:?}",
@@ -466,9 +467,10 @@ fn validate_wrong_outlet_count() {
     }"#;
     let report = validate_str(json, "wrong_outlets.maxpat");
     // Should detect outlet count mismatch for cycle~ (expected 1, got 3)
-    let has_outlet_error = report.errors.iter().any(|e| {
-        e.severity == Severity::Error && e.message.contains("outlet")
-    });
+    let has_outlet_error = report
+        .errors
+        .iter()
+        .any(|e| e.severity == Severity::Error && e.message.contains("outlet"));
     assert!(
         has_outlet_error,
         "should detect outlet count mismatch, got: {:?}",

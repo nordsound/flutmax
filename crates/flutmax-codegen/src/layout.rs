@@ -5,7 +5,6 @@
 /// 2. Build layer structure
 /// 3. Crossing reduction (barycenter heuristic)
 /// 4. Coordinate assignment
-
 use std::collections::{HashMap, VecDeque};
 
 use flutmax_sema::graph::{PatchGraph, PatchNode};
@@ -56,7 +55,7 @@ fn assign_layers(graph: &PatchGraph) -> HashMap<String, usize> {
 
     for node in &graph.nodes {
         in_degree.entry(node.id.as_str()).or_insert(0);
-        adjacency.entry(node.id.as_str()).or_insert_with(Vec::new);
+        adjacency.entry(node.id.as_str()).or_default();
     }
 
     for edge in &graph.edges {
@@ -268,7 +267,10 @@ fn assign_coordinates(layers: &[Vec<&PatchNode>]) -> LayoutResult {
 
     LayoutResult {
         positions,
-        patcher_size: (max_x + NODE_SPACING + MARGIN_X, max_y + LAYER_SPACING + MARGIN_Y),
+        patcher_size: (
+            max_x + NODE_SPACING + MARGIN_X,
+            max_y + LAYER_SPACING + MARGIN_Y,
+        ),
     }
 }
 
@@ -483,7 +485,10 @@ mod tests {
         let result = sugiyama_layout(&graph);
         let (_, ay) = result.positions["a"];
         let (_, by) = result.positions["b"];
-        assert!(ay < by, "tapin~ should be above tapout~ (feedback edge excluded)");
+        assert!(
+            ay < by,
+            "tapin~ should be above tapout~ (feedback edge excluded)"
+        );
     }
 
     #[test]
@@ -505,7 +510,10 @@ mod tests {
         // But at different x positions
         let ax = result.positions["a"].0;
         let bx = result.positions["b"].0;
-        assert!((ax - bx).abs() > 1.0, "isolated nodes should be side by side");
+        assert!(
+            (ax - bx).abs() > 1.0,
+            "isolated nodes should be side by side"
+        );
     }
 
     #[test]

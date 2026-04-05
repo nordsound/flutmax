@@ -27,13 +27,19 @@ pub fn emit(patch: &DecompiledPatch) -> String {
     let mut output = String::new();
 
     // Build wire name -> Y position map from ui_entries for comment proximity
-    let wire_y_positions: HashMap<&str, f64> = patch.ui_entries.iter()
+    let wire_y_positions: HashMap<&str, f64> = patch
+        .ui_entries
+        .iter()
         .map(|e| (e.name.as_str(), e.rect[1]))
         .collect();
 
     // Sort comments by Y position for ordered placement
     let mut sorted_comments: Vec<&crate::analyzer::CommentInfo> = patch.comments.iter().collect();
-    sorted_comments.sort_by(|a, b| a.y_position.partial_cmp(&b.y_position).unwrap_or(std::cmp::Ordering::Equal));
+    sorted_comments.sort_by(|a, b| {
+        a.y_position
+            .partial_cmp(&b.y_position)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // Match each comment to the nearest wire below it (by Y position).
     // A comment is associated with wire W if:
@@ -42,18 +48,23 @@ pub fn emit(patch: &DecompiledPatch) -> String {
     let mut unmatched_comments: Vec<usize> = Vec::new();
 
     // Build sorted wire Y values for matching
-    let wire_positions: Vec<(&str, f64)> = patch.wires.iter()
-        .map(|w| (w.name.as_str(), *wire_y_positions.get(w.name.as_str()).unwrap_or(&f64::MAX)))
+    let wire_positions: Vec<(&str, f64)> = patch
+        .wires
+        .iter()
+        .map(|w| {
+            (
+                w.name.as_str(),
+                *wire_y_positions.get(w.name.as_str()).unwrap_or(&f64::MAX),
+            )
+        })
         .collect();
 
     for (ci, comment) in sorted_comments.iter().enumerate() {
         // Find the first wire whose Y is >= comment's Y (the wire just below or at the comment)
         let mut best_wire: Option<(usize, f64)> = None;
         for (wi, (_name, wy)) in wire_positions.iter().enumerate() {
-            if *wy >= comment.y_position {
-                if best_wire.is_none() || *wy < best_wire.unwrap().1 {
-                    best_wire = Some((wi, *wy));
-                }
+            if *wy >= comment.y_position && (best_wire.is_none() || *wy < best_wire.unwrap().1) {
+                best_wire = Some((wi, *wy));
             }
         }
         if let Some((wi, _)) = best_wire {
@@ -62,10 +73,9 @@ pub fn emit(patch: &DecompiledPatch) -> String {
             // Comment is below all wires — check if it's closest to the last wire (above it)
             let mut best_above: Option<(usize, f64)> = None;
             for (wi, (_name, wy)) in wire_positions.iter().enumerate() {
-                if *wy < comment.y_position {
-                    if best_above.is_none() || *wy > best_above.unwrap().1 {
-                        best_above = Some((wi, *wy));
-                    }
+                if *wy < comment.y_position && (best_above.is_none() || *wy > best_above.unwrap().1)
+                {
+                    best_above = Some((wi, *wy));
                 }
             }
             if let Some((wi, _)) = best_above {
@@ -86,10 +96,7 @@ pub fn emit(patch: &DecompiledPatch) -> String {
 
     // Port declarations: in (implicit index — declaration order = index)
     for decl in &patch.in_decls {
-        output.push_str(&format!(
-            "in {}: {};\n",
-            decl.name, decl.port_type
-        ));
+        output.push_str(&format!("in {}: {};\n", decl.name, decl.port_type));
     }
 
     // Count out_assignments per index. Only merge if exactly one assignment per index.
@@ -98,7 +105,9 @@ pub fn emit(patch: &DecompiledPatch) -> String {
         *out_assign_count.entry(a.index).or_insert(0) += 1;
     }
     // Build a map of out_assignment index → wire_name for inline merging (only for unique assignments)
-    let out_assign_map: HashMap<u32, &str> = patch.out_assignments.iter()
+    let out_assign_map: HashMap<u32, &str> = patch
+        .out_assignments
+        .iter()
         .filter(|a| out_assign_count.get(&a.index) == Some(&1))
         .map(|a| (a.index, a.wire_name.as_str()))
         .collect();
@@ -115,10 +124,7 @@ pub fn emit(patch: &DecompiledPatch) -> String {
             ));
             merged_out_indices.insert(decl.index);
         } else {
-            output.push_str(&format!(
-                "out {}: {};\n",
-                decl.name, decl.port_type
-            ));
+            output.push_str(&format!("out {}: {};\n", decl.name, decl.port_type));
         }
     }
 
@@ -130,13 +136,23 @@ pub fn emit(patch: &DecompiledPatch) -> String {
     // Message declarations
     for msg in &patch.messages {
         if msg.attrs.is_empty() {
-            output.push_str(&format!("msg {} = \"{}\";\n", msg.name, escape_string(&msg.content)));
+            output.push_str(&format!(
+                "msg {} = \"{}\";\n",
+                msg.name,
+                escape_string(&msg.content)
+            ));
         } else {
-            let attr_pairs: Vec<String> = msg.attrs.iter()
+            let attr_pairs: Vec<String> = msg
+                .attrs
+                .iter()
                 .map(|(k, v)| format!("{}: {}", k, v))
                 .collect();
-            output.push_str(&format!("msg {} = \"{}\".attr({});\n",
-                msg.name, escape_string(&msg.content), attr_pairs.join(", ")));
+            output.push_str(&format!(
+                "msg {} = \"{}\".attr({});\n",
+                msg.name,
+                escape_string(&msg.content),
+                attr_pairs.join(", ")
+            ));
         }
     }
     if !patch.messages.is_empty() {
@@ -146,9 +162,13 @@ pub fn emit(patch: &DecompiledPatch) -> String {
     // Build set of wire names and collect connections per wire
     let wire_name_set: HashSet<&str> = patch.wires.iter().map(|w| w.name.as_str()).collect();
     // Index direct connections by target wire for grouped emission
-    let mut connections_by_target: HashMap<&str, Vec<&crate::analyzer::DirectConnectionInfo>> = HashMap::new();
+    let mut connections_by_target: HashMap<&str, Vec<&crate::analyzer::DirectConnectionInfo>> =
+        HashMap::new();
     for dc in &patch.direct_connections {
-        connections_by_target.entry(dc.target_wire.as_str()).or_default().push(dc);
+        connections_by_target
+            .entry(dc.target_wire.as_str())
+            .or_default()
+            .push(dc);
     }
 
     // Wire declarations with grouped connections and proximity comments
@@ -160,7 +180,8 @@ pub fn emit(patch: &DecompiledPatch) -> String {
         // Block separation: add extra blank line if this wire doesn't reference
         // any of the recently defined wires (indicates a new independent group)
         if !recent_names.is_empty() {
-            let references_recent = recent_names.iter()
+            let references_recent = recent_names
+                .iter()
                 .rev()
                 .take(window_size)
                 .any(|name| wire.expr.contains(name.as_str()));
@@ -180,17 +201,28 @@ pub fn emit(patch: &DecompiledPatch) -> String {
         if wire.attrs.is_empty() {
             output.push_str(&format!("wire {} = {};\n", wire.name, wire.expr));
         } else {
-            let attr_pairs: Vec<String> = wire.attrs.iter()
+            let attr_pairs: Vec<String> = wire
+                .attrs
+                .iter()
                 .map(|(k, v)| format!("{}: {}", k, v))
                 .collect();
-            output.push_str(&format!("wire {} = {}.attr({});\n",
-                wire.name, wire.expr, attr_pairs.join(", ")));
+            output.push_str(&format!(
+                "wire {} = {}.attr({});\n",
+                wire.name,
+                wire.expr,
+                attr_pairs.join(", ")
+            ));
         }
 
         // Emit direct connections that target this wire
         if let Some(conns) = connections_by_target.get(wire.name.as_str()) {
             for dc in conns {
-                output.push_str(&format!("{}.in{} = {};\n", dc.target_wire, format_inlet_index(dc.inlet), dc.source_wire));
+                output.push_str(&format!(
+                    "{}.in{} = {};\n",
+                    dc.target_wire,
+                    format_inlet_index(dc.inlet),
+                    dc.source_wire
+                ));
             }
         }
 
@@ -205,15 +237,24 @@ pub fn emit(patch: &DecompiledPatch) -> String {
                 output.push('\n');
             }
             has_remaining_dc = true;
-            output.push_str(&format!("{}.in{} = {};\n", dc.target_wire, format_inlet_index(dc.inlet), dc.source_wire));
+            output.push_str(&format!(
+                "{}.in{} = {};\n",
+                dc.target_wire,
+                format_inlet_index(dc.inlet),
+                dc.source_wire
+            ));
         }
     }
 
     // Remaining out assignments (those not merged into out declarations)
-    let remaining_out_assigns: Vec<_> = patch.out_assignments.iter()
+    let remaining_out_assigns: Vec<_> = patch
+        .out_assignments
+        .iter()
         .filter(|a| !merged_out_indices.contains(&a.index))
         .collect();
-    if (!patch.wires.is_empty() || !patch.direct_connections.is_empty()) && !remaining_out_assigns.is_empty() {
+    if (!patch.wires.is_empty() || !patch.direct_connections.is_empty())
+        && !remaining_out_assigns.is_empty()
+    {
         output.push('\n');
     }
     for assign in &remaining_out_assigns {
@@ -243,7 +284,8 @@ pub fn emit_ui_file(patch: &DecompiledPatch) -> Option<String> {
     use serde_json::{json, Map, Value};
 
     // Only generate if there's meaningful data
-    let has_visual = !patch.comments.is_empty() || !patch.panels.is_empty() || !patch.images.is_empty();
+    let has_visual =
+        !patch.comments.is_empty() || !patch.panels.is_empty() || !patch.images.is_empty();
     if patch.ui_entries.is_empty() && patch.patcher_rect.is_none() && !has_visual {
         return None;
     }
@@ -277,7 +319,7 @@ pub fn emit_ui_file(patch: &DecompiledPatch) -> Option<String> {
                 }
             } else if v.starts_with('"') && v.ends_with('"') {
                 // Quoted string — unquote for JSON
-                let inner = &v[1..v.len()-1];
+                let inner = &v[1..v.len() - 1];
                 obj.insert(k.clone(), Value::String(inner.to_string()));
             } else {
                 obj.insert(k.clone(), Value::String(v.clone()));
@@ -289,46 +331,58 @@ pub fn emit_ui_file(patch: &DecompiledPatch) -> Option<String> {
 
     // _comments: position data for comment boxes (text is in .flutmax as // lines)
     if !patch.comments.is_empty() {
-        let comments: Vec<Value> = patch.comments.iter().map(|c| {
-            json!({
-                "text": c.text,
-                "rect": [c.rect[0], c.rect[1], c.rect[2], c.rect[3]]
+        let comments: Vec<Value> = patch
+            .comments
+            .iter()
+            .map(|c| {
+                json!({
+                    "text": c.text,
+                    "rect": [c.rect[0], c.rect[1], c.rect[2], c.rect[3]]
+                })
             })
-        }).collect();
+            .collect();
         root.insert("_comments".to_string(), json!(comments));
     }
 
     // _panels: visual-only panel boxes
     if !patch.panels.is_empty() {
-        let panels: Vec<Value> = patch.panels.iter().map(|p| {
-            let mut obj = json!({ "rect": [p.rect[0], p.rect[1], p.rect[2], p.rect[3]] });
-            for (k, v) in &p.attrs {
-                if let Ok(n) = v.parse::<f64>() {
-                    if n == n.floor() && n.abs() < i64::MAX as f64 {
-                        obj[k] = json!(n as i64);
+        let panels: Vec<Value> = patch
+            .panels
+            .iter()
+            .map(|p| {
+                let mut obj = json!({ "rect": [p.rect[0], p.rect[1], p.rect[2], p.rect[3]] });
+                for (k, v) in &p.attrs {
+                    if let Ok(n) = v.parse::<f64>() {
+                        if n == n.floor() && n.abs() < i64::MAX as f64 {
+                            obj[k] = json!(n as i64);
+                        } else {
+                            obj[k] = json!(n);
+                        }
+                    } else if v.starts_with('"') && v.ends_with('"') {
+                        let inner = &v[1..v.len() - 1];
+                        obj[k] = json!(inner);
                     } else {
-                        obj[k] = json!(n);
+                        obj[k] = json!(v);
                     }
-                } else if v.starts_with('"') && v.ends_with('"') {
-                    let inner = &v[1..v.len()-1];
-                    obj[k] = json!(inner);
-                } else {
-                    obj[k] = json!(v);
                 }
-            }
-            obj
-        }).collect();
+                obj
+            })
+            .collect();
         root.insert("_panels".to_string(), json!(panels));
     }
 
     // _images: visual-only image boxes (fpic)
     if !patch.images.is_empty() {
-        let images: Vec<Value> = patch.images.iter().map(|i| {
-            json!({
-                "rect": [i.rect[0], i.rect[1], i.rect[2], i.rect[3]],
-                "pic": i.pic
+        let images: Vec<Value> = patch
+            .images
+            .iter()
+            .map(|i| {
+                json!({
+                    "rect": [i.rect[0], i.rect[1], i.rect[2], i.rect[3]],
+                    "pic": i.pic
+                })
             })
-        }).collect();
+            .collect();
         root.insert("_images".to_string(), json!(images));
     }
 
@@ -407,7 +461,9 @@ fn decompile_multi_inner(
 
     // Detect RNBO subpatchers by matching embedded patchers (in order) to
     // the subpatcher names returned by analyze_recursive (same iteration order).
-    let embedded_boxes: Vec<_> = maxpat.boxes.iter()
+    let embedded_boxes: Vec<_> = maxpat
+        .boxes
+        .iter()
         .filter(|b| b.embedded_patcher.is_some())
         .collect();
     for (i, b) in embedded_boxes.iter().enumerate() {
@@ -434,13 +490,21 @@ fn decompile_multi_inner(
         }
     }
 
-    Ok(DecompileResult { files, code_files, rnbo_patchers, main_file })
+    Ok(DecompileResult {
+        files,
+        code_files,
+        rnbo_patchers,
+        main_file,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyzer::{CommentInfo, DecompiledPatch, InDeclInfo, MsgInfo, OutAssignInfo, OutDeclInfo, UiEntryInfo, WireInfo};
+    use crate::analyzer::{
+        CommentInfo, DecompiledPatch, InDeclInfo, MsgInfo, OutAssignInfo, OutDeclInfo, UiEntryInfo,
+        WireInfo,
+    };
 
     #[test]
     fn emit_simple_patch() {
@@ -600,8 +664,16 @@ mod tests {
             in_decls: vec![],
             out_decls: vec![],
             comments: vec![
-                CommentInfo { text: "This is a comment".into(), rect: [0.0, 10.0, 200.0, 20.0], y_position: 10.0 },
-                CommentInfo { text: "Another comment".into(), rect: [0.0, 20.0, 200.0, 20.0], y_position: 20.0 },
+                CommentInfo {
+                    text: "This is a comment".into(),
+                    rect: [0.0, 10.0, 200.0, 20.0],
+                    y_position: 10.0,
+                },
+                CommentInfo {
+                    text: "Another comment".into(),
+                    rect: [0.0, 20.0, 200.0, 20.0],
+                    y_position: 20.0,
+                },
             ],
             messages: vec![],
             wires: vec![WireInfo {
@@ -704,7 +776,11 @@ mod tests {
         assert!(source.contains("wire"));
         assert!(source.contains("cycle~(440)"));
         // Out declaration: either inline `out name: type = expr;` or separate `out[0] = ...;`
-        assert!(source.contains("out "), "should contain out declaration: {}", source);
+        assert!(
+            source.contains("out "),
+            "should contain out declaration: {}",
+            source
+        );
     }
 
     #[test]
@@ -784,7 +860,11 @@ mod tests {
 
         let result = decompile_multi(json, "synth").unwrap();
         assert_eq!(result.main_file, "synth.flutmax");
-        assert_eq!(result.files.len(), 2, "Should produce 2 files: main + subpatcher");
+        assert_eq!(
+            result.files.len(),
+            2,
+            "Should produce 2 files: main + subpatcher"
+        );
 
         // Main file should reference the subpatcher
         let main_source = &result.files["synth.flutmax"];
@@ -795,15 +875,25 @@ mod tests {
         );
 
         // Subpatcher file should exist
-        let sub_file = result.files.keys().find(|k| k.contains("myfilter")).unwrap();
+        let sub_file = result
+            .files
+            .keys()
+            .find(|k| k.contains("myfilter"))
+            .unwrap();
         let sub_source = &result.files[sub_file];
         assert!(
             sub_source.contains("biquad~"),
             "Subpatcher should contain biquad~: {}",
             sub_source
         );
-        assert!(sub_source.contains("in "), "Subpatcher should have inlet declaration");
-        assert!(sub_source.contains("out "), "Subpatcher should have outlet declaration");
+        assert!(
+            sub_source.contains("in "),
+            "Subpatcher should have inlet declaration"
+        );
+        assert!(
+            sub_source.contains("out "),
+            "Subpatcher should have outlet declaration"
+        );
     }
 
     #[test]
@@ -860,7 +950,12 @@ mod tests {
         let result = decompile_multi(json, "main").unwrap();
         assert_eq!(result.main_file, "main.flutmax");
         // Should produce 3 files: main, outer, inner
-        assert_eq!(result.files.len(), 3, "Expected 3 files, got: {:?}", result.files.keys().collect::<Vec<_>>());
+        assert_eq!(
+            result.files.len(),
+            3,
+            "Expected 3 files, got: {:?}",
+            result.files.keys().collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -896,7 +991,11 @@ mod tests {
 
         // Old API should not panic; it simply treats the subpatcher box as a regular node
         let source = decompile(json).unwrap();
-        assert!(source.contains("wire"), "Should produce a wire for the p box: {}", source);
+        assert!(
+            source.contains("wire"),
+            "Should produce a wire for the p box: {}",
+            source
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -962,7 +1061,11 @@ mod tests {
             "No .attr() should appear: {}",
             source
         );
-        assert!(!source.contains(".attr("), "Should not contain .attr(): {}", source);
+        assert!(
+            !source.contains(".attr("),
+            "Should not contain .attr(): {}",
+            source
+        );
     }
 
     #[test]
@@ -974,9 +1077,7 @@ mod tests {
             messages: vec![MsgInfo {
                 name: "click".into(),
                 content: "bang".into(),
-                attrs: vec![
-                    ("some_attr".into(), "\"value\"".into()),
-                ],
+                attrs: vec![("some_attr".into(), "\"value\"".into())],
             }],
             wires: vec![],
             out_assignments: vec![],
@@ -1192,11 +1293,7 @@ mod tests {
         }"#;
 
         let source = decompile(json).unwrap();
-        assert!(
-            source.contains(".attr("),
-            "Should have .attr(): {}",
-            source
-        );
+        assert!(source.contains(".attr("), "Should have .attr(): {}", source);
         assert!(
             source.contains("parameter_longname: Cutoff"),
             "Should contain parameter_longname: {}",
@@ -1268,14 +1365,19 @@ mod tests {
 
         // Should have 1 code file (.js)
         assert_eq!(
-            result.code_files.len(), 1,
+            result.code_files.len(),
+            1,
             "Expected 1 code file, got: {:?}",
             result.code_files
         );
 
         // The code file should be a .js file with the JS content
         let (filename, content) = result.code_files.iter().next().unwrap();
-        assert!(filename.ends_with(".js"), "Expected .js extension: {}", filename);
+        assert!(
+            filename.ends_with(".js"),
+            "Expected .js extension: {}",
+            filename
+        );
         assert!(
             content.contains("function bang()"),
             "Code file should contain JS code: {}",
@@ -1503,17 +1605,23 @@ mod tests {
             comments: vec![],
             messages: vec![],
             wires: vec![
-                WireInfo { name: "a".into(), expr: "cycle~(440)".into(), attrs: vec![] },
-                WireInfo { name: "b".into(), expr: "gain~(a)".into(), attrs: vec![] },
-            ],
-            out_assignments: vec![],
-            direct_connections: vec![
-                DirectConnectionInfo {
-                    target_wire: "b".into(),
-                    inlet: 1,
-                    source_wire: "a".into(),
+                WireInfo {
+                    name: "a".into(),
+                    expr: "cycle~(440)".into(),
+                    attrs: vec![],
+                },
+                WireInfo {
+                    name: "b".into(),
+                    expr: "gain~(a)".into(),
+                    attrs: vec![],
                 },
             ],
+            out_assignments: vec![],
+            direct_connections: vec![DirectConnectionInfo {
+                target_wire: "b".into(),
+                inlet: 1,
+                source_wire: "a".into(),
+            }],
             code_files: vec![],
             ui_entries: vec![],
             patcher_rect: None,
@@ -1545,20 +1653,44 @@ mod tests {
             in_decls: vec![],
             out_decls: vec![],
             comments: vec![
-                CommentInfo { text: "oscillator section".into(), rect: [100.0, 95.0, 200.0, 20.0], y_position: 95.0 },
-                CommentInfo { text: "gain section".into(), rect: [100.0, 195.0, 200.0, 20.0], y_position: 195.0 },
+                CommentInfo {
+                    text: "oscillator section".into(),
+                    rect: [100.0, 95.0, 200.0, 20.0],
+                    y_position: 95.0,
+                },
+                CommentInfo {
+                    text: "gain section".into(),
+                    rect: [100.0, 195.0, 200.0, 20.0],
+                    y_position: 195.0,
+                },
             ],
             messages: vec![],
             wires: vec![
-                WireInfo { name: "osc".into(), expr: "cycle~(440)".into(), attrs: vec![] },
-                WireInfo { name: "gain".into(), expr: "mul~(osc, 0.5)".into(), attrs: vec![] },
+                WireInfo {
+                    name: "osc".into(),
+                    expr: "cycle~(440)".into(),
+                    attrs: vec![],
+                },
+                WireInfo {
+                    name: "gain".into(),
+                    expr: "mul~(osc, 0.5)".into(),
+                    attrs: vec![],
+                },
             ],
             out_assignments: vec![],
             direct_connections: vec![],
             code_files: vec![],
             ui_entries: vec![
-                UiEntryInfo { name: "osc".into(), rect: [100.0, 100.0, 80.0, 22.0], decorative_attrs: vec![] },
-                UiEntryInfo { name: "gain".into(), rect: [100.0, 200.0, 80.0, 22.0], decorative_attrs: vec![] },
+                UiEntryInfo {
+                    name: "osc".into(),
+                    rect: [100.0, 100.0, 80.0, 22.0],
+                    decorative_attrs: vec![],
+                },
+                UiEntryInfo {
+                    name: "gain".into(),
+                    rect: [100.0, 200.0, 80.0, 22.0],
+                    decorative_attrs: vec![],
+                },
             ],
             patcher_rect: None,
             panels: vec![],
@@ -1569,15 +1701,27 @@ mod tests {
         // "oscillator section" comment should appear before wire osc
         let osc_comment_pos = source.find("// oscillator section").unwrap();
         let osc_wire_pos = source.find("wire osc =").unwrap();
-        assert!(osc_comment_pos < osc_wire_pos, "Comment should be before its wire: {}", source);
+        assert!(
+            osc_comment_pos < osc_wire_pos,
+            "Comment should be before its wire: {}",
+            source
+        );
 
         // "gain section" comment should appear before wire gain
         let gain_comment_pos = source.find("// gain section").unwrap();
         let gain_wire_pos = source.find("wire gain =").unwrap();
-        assert!(gain_comment_pos < gain_wire_pos, "Comment should be before its wire: {}", source);
+        assert!(
+            gain_comment_pos < gain_wire_pos,
+            "Comment should be before its wire: {}",
+            source
+        );
 
         // "gain section" should appear after "wire osc" (not at the top)
-        assert!(gain_comment_pos > osc_wire_pos, "Gain comment should be after osc wire: {}", source);
+        assert!(
+            gain_comment_pos > osc_wire_pos,
+            "Gain comment should be after osc wire: {}",
+            source
+        );
     }
 
     #[test]
@@ -1589,11 +1733,27 @@ mod tests {
             messages: vec![],
             wires: vec![
                 // Group 1: connected chain
-                WireInfo { name: "osc".into(), expr: "cycle~(440)".into(), attrs: vec![] },
-                WireInfo { name: "gain".into(), expr: "mul~(osc, 0.5)".into(), attrs: vec![] },
+                WireInfo {
+                    name: "osc".into(),
+                    expr: "cycle~(440)".into(),
+                    attrs: vec![],
+                },
+                WireInfo {
+                    name: "gain".into(),
+                    expr: "mul~(osc, 0.5)".into(),
+                    attrs: vec![],
+                },
                 // Group 2: independent chain (doesn't reference osc or gain)
-                WireInfo { name: "lfo".into(), expr: "cycle~(1)".into(), attrs: vec![] },
-                WireInfo { name: "depth".into(), expr: "mul~(lfo, 100)".into(), attrs: vec![] },
+                WireInfo {
+                    name: "lfo".into(),
+                    expr: "cycle~(1)".into(),
+                    attrs: vec![],
+                },
+                WireInfo {
+                    name: "depth".into(),
+                    expr: "mul~(lfo, 100)".into(),
+                    attrs: vec![],
+                },
             ],
             out_assignments: vec![],
             direct_connections: vec![],
@@ -1616,5 +1776,4 @@ mod tests {
             between
         );
     }
-
 }

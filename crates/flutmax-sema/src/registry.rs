@@ -4,7 +4,6 @@
 /// across multiple `.flutmax` files during cross-file compilation.
 /// Referenced by `build_graph` when resolving object calls to determine
 /// `numinlets`/`numoutlets` for Abstractions.
-
 use std::collections::HashMap;
 
 use flutmax_ast::{PortType, Program};
@@ -166,13 +165,13 @@ mod tests {
                     index: 0,
                     name: "lowpass".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
                 OutDecl {
                     index: 1,
                     name: "highpass".to_string(),
                     port_type: PortType::Signal,
-                value: None,
+                    value: None,
                 },
             ],
             wires: vec![],

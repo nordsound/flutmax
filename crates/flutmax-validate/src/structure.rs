@@ -631,7 +631,10 @@ mod tests {
         });
         let errors = validate_structure(&json);
         let wrap_err = errors.iter().find(|e| e.message.contains("wrapper"));
-        assert!(wrap_err.is_some(), "Expected error about missing 'box' wrapper");
+        assert!(
+            wrap_err.is_some(),
+            "Expected error about missing 'box' wrapper"
+        );
     }
 
     #[test]

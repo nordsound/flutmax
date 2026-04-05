@@ -2,7 +2,6 @@
 ///
 /// Generate a `.maxpat` JSON string that Max/MSP can load from a `PatchGraph`.
 /// Conforms to the schema defined in experiment E01.
-
 use std::collections::HashMap;
 
 use flutmax_sema::graph::{PatchGraph, PatchNode};
@@ -34,15 +33,18 @@ impl UiData {
         let mut patcher = HashMap::new();
         let mut entries = HashMap::new();
 
-        let comments = obj.get("_comments")
+        let comments = obj
+            .get("_comments")
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
-        let panels = obj.get("_panels")
+        let panels = obj
+            .get("_panels")
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
-        let images = obj.get("_images")
+        let images = obj
+            .get("_images")
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
@@ -61,7 +63,13 @@ impl UiData {
             }
         }
 
-        Some(UiData { patcher, entries, comments, panels, images })
+        Some(UiData {
+            patcher,
+            entries,
+            comments,
+            panels,
+            images,
+        })
     }
 }
 
@@ -137,7 +145,11 @@ pub fn generate_with_ui(
 }
 
 /// Build the patcher object.
-fn build_patcher(graph: &PatchGraph, opts: &GenerateOptions, ui_data: Option<&UiData>) -> Result<Value, CodegenError> {
+fn build_patcher(
+    graph: &PatchGraph,
+    opts: &GenerateOptions,
+    ui_data: Option<&UiData>,
+) -> Result<Value, CodegenError> {
     let is_rnbo = opts.classnamespace == "rnbo";
     let is_gen = opts.classnamespace == "dsp.gen";
     let needs_port_indices = is_rnbo || is_gen;
@@ -214,7 +226,16 @@ fn build_patcher(graph: &PatchGraph, opts: &GenerateOptions, ui_data: Option<&Ui
                 .get(&node.id)
                 .or_else(|| outlet_indices.get(&node.id))
                 .copied();
-            build_box(node, &mapped_id, x, y, classnamespace, serial, port_index, ui_data)
+            build_box(
+                node,
+                &mapped_id,
+                x,
+                y,
+                classnamespace,
+                serial,
+                port_index,
+                ui_data,
+            )
         })
         .collect();
 
@@ -224,7 +245,10 @@ fn build_patcher(graph: &PatchGraph, opts: &GenerateOptions, ui_data: Option<&Ui
 
         // Restore comment boxes
         for comment in &ui.comments {
-            let rect = comment.get("rect").cloned().unwrap_or(json!([50, 50, 200, 20]));
+            let rect = comment
+                .get("rect")
+                .cloned()
+                .unwrap_or(json!([50, 50, 200, 20]));
             let text = comment.get("text").and_then(|t| t.as_str()).unwrap_or("");
             let id = format!("obj-{}", visual_counter);
             visual_counter += 1;
@@ -243,7 +267,10 @@ fn build_patcher(graph: &PatchGraph, opts: &GenerateOptions, ui_data: Option<&Ui
 
         // Restore panel boxes
         for panel in &ui.panels {
-            let rect = panel.get("rect").cloned().unwrap_or(json!([50, 50, 200, 200]));
+            let rect = panel
+                .get("rect")
+                .cloned()
+                .unwrap_or(json!([50, 50, 200, 200]));
             let id = format!("obj-{}", visual_counter);
             visual_counter += 1;
             let mut box_obj = serde_json::Map::new();
@@ -266,7 +293,10 @@ fn build_patcher(graph: &PatchGraph, opts: &GenerateOptions, ui_data: Option<&Ui
 
         // Restore image boxes (fpic)
         for image in &ui.images {
-            let rect = image.get("rect").cloned().unwrap_or(json!([50, 50, 200, 200]));
+            let rect = image
+                .get("rect")
+                .cloned()
+                .unwrap_or(json!([50, 50, 200, 200]));
             let pic = image.get("pic").and_then(|p| p.as_str()).unwrap_or("");
             let id = format!("obj-{}", visual_counter);
             visual_counter += 1;
@@ -390,13 +420,12 @@ fn build_box(
 
     // RNBO mode: outlet/outport has numoutlets=0 (sink)
     // gen~ mode: `out N` has numoutlets=0 (sink)
-    let effective_num_outlets = if (is_rnbo || is_gen)
-        && matches!(node.object_name.as_str(), "outlet" | "outlet~")
-    {
-        0
-    } else {
-        node.num_outlets
-    };
+    let effective_num_outlets =
+        if (is_rnbo || is_gen) && matches!(node.object_name.as_str(), "outlet" | "outlet~") {
+            0
+        } else {
+            node.num_outlets
+        };
 
     let mut box_obj = Map::new();
     box_obj.insert("id".into(), json!(id));
@@ -533,9 +562,9 @@ fn build_box(
     }
 
     // .uiflutmax UI data: override position and add decorative attributes
-    if let Some(ui_entry) = ui_data.and_then(|ui| {
-        node.varname.as_ref().and_then(|vn| ui.entries.get(vn))
-    }) {
+    if let Some(ui_entry) =
+        ui_data.and_then(|ui| node.varname.as_ref().and_then(|vn| ui.entries.get(vn)))
+    {
         // Override position from UI data
         if let Some(rect) = ui_entry.get("rect") {
             box_obj.insert("patching_rect".into(), rect.clone());
@@ -573,7 +602,9 @@ fn classify_maxclass(node: &PatchNode, classnamespace: &str) -> (&'static str, f
     let is_gen = classnamespace == "dsp.gen";
     match node.object_name.as_str() {
         "inlet" | "inlet~" if is_rnbo || is_gen => ("newobj", BOX_WIDTH_NEWOBJ, BOX_HEIGHT_NEWOBJ),
-        "outlet" | "outlet~" if is_rnbo || is_gen => ("newobj", BOX_WIDTH_NEWOBJ, BOX_HEIGHT_NEWOBJ),
+        "outlet" | "outlet~" if is_rnbo || is_gen => {
+            ("newobj", BOX_WIDTH_NEWOBJ, BOX_HEIGHT_NEWOBJ)
+        }
         "inlet" => ("inlet", BOX_WIDTH_INLET_OUTLET, BOX_HEIGHT_INLET_OUTLET),
         "inlet~" => ("inlet", BOX_WIDTH_INLET_OUTLET, BOX_HEIGHT_INLET_OUTLET),
         "outlet" => ("outlet", BOX_WIDTH_INLET_OUTLET, BOX_HEIGHT_INLET_OUTLET),
@@ -761,8 +792,10 @@ mod tests {
             args: vec!["440".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -772,8 +805,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 0,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -805,8 +840,10 @@ mod tests {
             args: vec![],
             num_inlets: 0,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -816,8 +853,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -827,8 +866,10 @@ mod tests {
             args: vec!["0.5".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -838,8 +879,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -1058,8 +1101,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1074,8 +1119,10 @@ mod tests {
             args: vec!["440".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1090,8 +1137,10 @@ mod tests {
             args: vec!["b".into(), "b".into(), "b".into()],
             num_inlets: 1,
             num_outlets: 3,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1106,8 +1155,10 @@ mod tests {
             args: vec![],
             num_inlets: 0,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1125,8 +1176,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1142,8 +1195,10 @@ mod tests {
             args: vec!["440".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1159,8 +1214,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1176,8 +1233,10 @@ mod tests {
             args: vec![],
             num_inlets: 2,
             num_outlets: 0,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1328,11 +1387,7 @@ mod tests {
         for (i, line) in lines.iter().enumerate() {
             let patchline = &line["patchline"];
             let order = patchline.get("order");
-            assert!(
-                order.is_some(),
-                "patchline {} should have order field",
-                i
-            );
+            assert!(order.is_some(), "patchline {} should have order field", i);
             assert_eq!(order.unwrap().as_u64().unwrap(), i as u64);
         }
     }
@@ -1373,9 +1428,7 @@ mod tests {
             varname: Some("osc".into()),
             hot_inlets: vec![],
             purity: NodePurity::Unknown,
-            attrs: vec![
-                ("phase".into(), "0.5".into()),
-            ],
+            attrs: vec![("phase".into(), "0.5".into())],
             code: None,
         });
 
@@ -1461,9 +1514,7 @@ mod tests {
             varname: None,
             hot_inlets: vec![],
             purity: NodePurity::Unknown,
-            attrs: vec![
-                ("parameter_longname".into(), "Cutoff".into()),
-            ],
+            attrs: vec![("parameter_longname".into(), "Cutoff".into())],
             code: None,
         });
 
@@ -1911,8 +1962,10 @@ mod tests {
             args: vec![],
             num_inlets: 0,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1925,8 +1978,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
@@ -1943,12 +1998,23 @@ mod tests {
             args: vec![],
             num_inlets: 0,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
-        let box_json = build_box(&inlet_node, "obj-1", 100.0, 50.0, "dsp.gen", 1, Some(0), None);
+        let box_json = build_box(
+            &inlet_node,
+            "obj-1",
+            100.0,
+            50.0,
+            "dsp.gen",
+            1,
+            Some(0),
+            None,
+        );
         let box_obj = &box_json["box"];
         assert_eq!(box_obj["maxclass"], "newobj");
         assert_eq!(box_obj["text"], "in 1");
@@ -1961,12 +2027,23 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         };
-        let box_json = build_box(&outlet_node, "obj-2", 100.0, 120.0, "dsp.gen", 2, Some(0), None);
+        let box_json = build_box(
+            &outlet_node,
+            "obj-2",
+            100.0,
+            120.0,
+            "dsp.gen",
+            2,
+            Some(0),
+            None,
+        );
         let box_obj = &box_json["box"];
         assert_eq!(box_obj["maxclass"], "newobj");
         assert_eq!(box_obj["text"], "out 1");
@@ -1983,8 +2060,10 @@ mod tests {
             args: vec![],
             num_inlets: 0,
             num_outlets: 1,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -1994,8 +2073,10 @@ mod tests {
             args: vec!["0.5".into()],
             num_inlets: 2,
             num_outlets: 1,
-            is_signal: false, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: false,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -2005,8 +2086,10 @@ mod tests {
             args: vec![],
             num_inlets: 1,
             num_outlets: 0,
-            is_signal: true, varname: None,
-            hot_inlets: vec![], purity: NodePurity::Unknown,
+            is_signal: true,
+            varname: None,
+            hot_inlets: vec![],
+            purity: NodePurity::Unknown,
             attrs: vec![],
             code: None,
         });
@@ -2027,7 +2110,9 @@ mod tests {
             order: None,
         });
 
-        let opts = GenerateOptions { classnamespace: "dsp.gen".to_string() };
+        let opts = GenerateOptions {
+            classnamespace: "dsp.gen".to_string(),
+        };
         let json_str = generate_with_options(&g, &opts).unwrap();
         let parsed: Value = serde_json::from_str(&json_str).unwrap();
 
@@ -2136,13 +2221,16 @@ mod tests {
             attrs: vec![],
             code: None,
         };
-        let ui = UiData::from_json(r#"{
+        let ui = UiData::from_json(
+            r#"{
             "osc": {
                 "rect": [250, 350, 90, 24],
                 "background": 0,
                 "fontsize": 14
             }
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
 
         let box_json = build_box(&node, "obj-1", 100.0, 50.0, "box", 1, None, Some(&ui));
         let box_obj = &box_json["box"];
@@ -2194,10 +2282,13 @@ mod tests {
             code: None,
         });
 
-        let ui = UiData::from_json(r#"{
+        let ui = UiData::from_json(
+            r#"{
             "_patcher": { "rect": [50, 50, 800, 600] },
             "osc": { "rect": [200, 300, 80, 22] }
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
 
         let json_str = generate_with_ui(&g, &GenerateOptions::default(), Some(&ui)).unwrap();
         let parsed: Value = serde_json::from_str(&json_str).unwrap();

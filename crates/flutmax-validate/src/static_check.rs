@@ -1,7 +1,7 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
-use flutmax_objdb::{ObjectDb, ObjectDef, InletSpec, OutletSpec, PortType};
+use flutmax_objdb::{InletSpec, ObjectDb, ObjectDef, OutletSpec, PortType};
 
 /// Static analysis error type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,31 +57,156 @@ struct BuiltinEntry {
 /// Covers the objects flutmax can generate.
 fn builtin_object_db() -> Vec<BuiltinEntry> {
     vec![
-        BuiltinEntry { name: "cycle~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "*~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "+~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "-~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "/~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "%~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "*", default_inlets: 2, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "+", default_inlets: 2, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "-", default_inlets: 2, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "/", default_inlets: 2, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "%", default_inlets: 2, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "trigger", default_inlets: 1, default_outlets: 0, is_signal: false },
-        BuiltinEntry { name: "t", default_inlets: 1, default_outlets: 0, is_signal: false },
-        BuiltinEntry { name: "pack", default_inlets: 0, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "unpack", default_inlets: 1, default_outlets: 0, is_signal: false },
-        BuiltinEntry { name: "loadbang", default_inlets: 1, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "button", default_inlets: 1, default_outlets: 1, is_signal: false },
-        BuiltinEntry { name: "print", default_inlets: 1, default_outlets: 0, is_signal: false },
-        BuiltinEntry { name: "biquad~", default_inlets: 6, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "line~", default_inlets: 2, default_outlets: 2, is_signal: true },
-        BuiltinEntry { name: "noise~", default_inlets: 1, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "phasor~", default_inlets: 2, default_outlets: 1, is_signal: true },
-        BuiltinEntry { name: "dac~", default_inlets: 2, default_outlets: 0, is_signal: true },
-        BuiltinEntry { name: "ezdac~", default_inlets: 2, default_outlets: 0, is_signal: true },
-        BuiltinEntry { name: "adc~", default_inlets: 0, default_outlets: 2, is_signal: true },
+        BuiltinEntry {
+            name: "cycle~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "*~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "+~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "-~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "/~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "%~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "*",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "+",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "-",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "/",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "%",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "trigger",
+            default_inlets: 1,
+            default_outlets: 0,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "t",
+            default_inlets: 1,
+            default_outlets: 0,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "pack",
+            default_inlets: 0,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "unpack",
+            default_inlets: 1,
+            default_outlets: 0,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "loadbang",
+            default_inlets: 1,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "button",
+            default_inlets: 1,
+            default_outlets: 1,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "print",
+            default_inlets: 1,
+            default_outlets: 0,
+            is_signal: false,
+        },
+        BuiltinEntry {
+            name: "biquad~",
+            default_inlets: 6,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "line~",
+            default_inlets: 2,
+            default_outlets: 2,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "noise~",
+            default_inlets: 1,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "phasor~",
+            default_inlets: 2,
+            default_outlets: 1,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "dac~",
+            default_inlets: 2,
+            default_outlets: 0,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "ezdac~",
+            default_inlets: 2,
+            default_outlets: 0,
+            is_signal: true,
+        },
+        BuiltinEntry {
+            name: "adc~",
+            default_inlets: 0,
+            default_outlets: 2,
+            is_signal: true,
+        },
     ]
 }
 
@@ -207,10 +332,7 @@ fn extract_boxes(json: &Value) -> Vec<BoxInfo> {
             .unwrap_or("")
             .to_string();
 
-        let numinlets = inner
-            .get("numinlets")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as u32;
+        let numinlets = inner.get("numinlets").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
         let numoutlets = inner
             .get("numoutlets")
@@ -273,10 +395,7 @@ fn extract_patchlines(json: &Value) -> Vec<PatchlineInfo> {
                 let source_id = src[0].as_str().unwrap_or("").to_string();
                 let dest_id = dst[0].as_str().unwrap_or("").to_string();
 
-                lines.push(PatchlineInfo {
-                    source_id,
-                    dest_id,
-                });
+                lines.push(PatchlineInfo { source_id, dest_id });
             }
         }
     }
@@ -331,7 +450,10 @@ pub fn validate_static_with_objdb(json: &Value, objdb: Option<&ObjectDb>) -> Vec
 
         // Determine if this box is a signal object
         if let Some(ref obj_name) = bx.object_name {
-            let resolved = aliases.get(obj_name.as_str()).copied().unwrap_or(obj_name.as_str());
+            let resolved = aliases
+                .get(obj_name.as_str())
+                .copied()
+                .unwrap_or(obj_name.as_str());
 
             // Try objdb first, then builtin
             if let Some(def) = objdb.and_then(|db| db.lookup(resolved)) {
@@ -381,40 +503,42 @@ pub fn validate_static_with_objdb(json: &Value, objdb: Option<&ObjectDb>) -> Vec
         let entry = entry.unwrap();
 
         // Check 2: Inlet count mismatch
-        if !is_variable_inlet_object(resolved_name) {
-            if bx.numinlets != entry.default_inlets {
-                errors.push(StaticCheckError {
-                    error_type: StaticErrorType::InletCountMismatch,
-                    box_id: bx.id.clone(),
-                    message: format!(
-                        "'{}' has numinlets={}, expected {}",
-                        obj_name, bx.numinlets, entry.default_inlets
-                    ),
-                });
-            }
+        if !is_variable_inlet_object(resolved_name) && bx.numinlets != entry.default_inlets {
+            errors.push(StaticCheckError {
+                error_type: StaticErrorType::InletCountMismatch,
+                box_id: bx.id.clone(),
+                message: format!(
+                    "'{}' has numinlets={}, expected {}",
+                    obj_name, bx.numinlets, entry.default_inlets
+                ),
+            });
         }
         // For variable-inlet objects, inlet count depends on arguments — skip check.
 
         // Check 3: Outlet count mismatch
-        if !is_variable_outlet_object(resolved_name) {
-            if bx.numoutlets != entry.default_outlets {
-                errors.push(StaticCheckError {
-                    error_type: StaticErrorType::OutletCountMismatch,
-                    box_id: bx.id.clone(),
-                    message: format!(
-                        "'{}' has numoutlets={}, expected {}",
-                        obj_name, bx.numoutlets, entry.default_outlets
-                    ),
-                });
-            }
+        if !is_variable_outlet_object(resolved_name) && bx.numoutlets != entry.default_outlets {
+            errors.push(StaticCheckError {
+                error_type: StaticErrorType::OutletCountMismatch,
+                box_id: bx.id.clone(),
+                message: format!(
+                    "'{}' has numoutlets={}, expected {}",
+                    obj_name, bx.numoutlets, entry.default_outlets
+                ),
+            });
         }
         // For variable-outlet objects, outlet count depends on arguments — skip check.
     }
 
     // Check 4: Signal→Control mismatch on patchlines
     for pl in &patchlines {
-        let source_is_signal = box_is_signal.get(pl.source_id.as_str()).copied().unwrap_or(false);
-        let dest_is_signal = box_is_signal.get(pl.dest_id.as_str()).copied().unwrap_or(false);
+        let source_is_signal = box_is_signal
+            .get(pl.source_id.as_str())
+            .copied()
+            .unwrap_or(false);
+        let dest_is_signal = box_is_signal
+            .get(pl.dest_id.as_str())
+            .copied()
+            .unwrap_or(false);
 
         // If the source is a signal object and destination is not, that's a mismatch
         if source_is_signal && !dest_is_signal {
@@ -567,7 +691,8 @@ pub fn find_max_c74_dir() -> Option<std::path::PathBuf> {
     {
         for version in &["Max 9", "Max 8"] {
             let default = std::path::PathBuf::from(format!(
-                "C:\\Program Files\\Cycling '74\\{}\\resources\\C74", version
+                "C:\\Program Files\\Cycling '74\\{}\\resources\\C74",
+                version
             ));
             if default.is_dir() {
                 return Some(default);
@@ -748,10 +873,7 @@ mod tests {
     #[test]
     fn trigger_variable_outlets_no_false_positive() {
         // trigger with 3 outlets (from "t b b b") — should not report mismatch
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "trigger b b b", 1, 3)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "trigger b b b", 1, 3)], vec![]);
         let errors = validate_static(&maxpat);
         assert!(
             errors.is_empty(),
@@ -763,10 +885,7 @@ mod tests {
     #[test]
     fn trigger_alias_variable_outlets_no_false_positive() {
         // "t" alias for trigger with 2 outlets — should not report mismatch
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "t b i", 1, 2)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "t b i", 1, 2)], vec![]);
         let errors = validate_static(&maxpat);
         assert!(
             errors.is_empty(),
@@ -778,10 +897,7 @@ mod tests {
     #[test]
     fn pack_variable_inlets_no_false_positive() {
         // pack with 4 inlets (from "pack 0 0 0 0") — should not report mismatch
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "pack 0 0 0 0", 4, 1)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "pack 0 0 0 0", 4, 1)], vec![]);
         let errors = validate_static(&maxpat);
         assert!(
             errors.is_empty(),
@@ -793,10 +909,7 @@ mod tests {
     #[test]
     fn unpack_variable_outlets_no_false_positive() {
         // unpack with 3 outlets — should not report mismatch
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "unpack 0 0 0", 1, 3)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "unpack 0 0 0", 1, 3)], vec![]);
         let errors = validate_static(&maxpat);
         assert!(
             errors.is_empty(),
@@ -872,7 +985,11 @@ mod tests {
             }
         });
         let errors = validate_static(&maxpat);
-        assert!(errors.is_empty(), "Expected no errors for comment box, got: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "Expected no errors for comment box, got: {:?}",
+            errors
+        );
     }
 
     #[test]
@@ -890,7 +1007,11 @@ mod tests {
             vec![],
         );
         let errors = validate_static(&maxpat);
-        assert!(errors.is_empty(), "Expected no errors for alias objects, got: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "Expected no errors for alias objects, got: {:?}",
+            errors
+        );
     }
 
     #[test]
@@ -913,13 +1034,19 @@ mod tests {
         // obj-1: UnknownObject, obj-2: InletCountMismatch + OutletCountMismatch
         assert_eq!(errors.len(), 3, "Expected 3 errors, got: {:?}", errors);
 
-        let unknown = errors.iter().find(|e| e.error_type == StaticErrorType::UnknownObject);
+        let unknown = errors
+            .iter()
+            .find(|e| e.error_type == StaticErrorType::UnknownObject);
         assert!(unknown.is_some());
 
-        let inlet = errors.iter().find(|e| e.error_type == StaticErrorType::InletCountMismatch);
+        let inlet = errors
+            .iter()
+            .find(|e| e.error_type == StaticErrorType::InletCountMismatch);
         assert!(inlet.is_some());
 
-        let outlet = errors.iter().find(|e| e.error_type == StaticErrorType::OutletCountMismatch);
+        let outlet = errors
+            .iter()
+            .find(|e| e.error_type == StaticErrorType::OutletCountMismatch);
         assert!(outlet.is_some());
     }
 
@@ -932,22 +1059,28 @@ mod tests {
 
     #[test]
     fn biquad_correct_inlets() {
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "biquad~ 1 0 0 0 0", 6, 1)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "biquad~ 1 0 0 0 0", 6, 1)], vec![]);
         let errors = validate_static(&maxpat);
-        assert!(errors.is_empty(), "Expected no errors for biquad~, got: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "Expected no errors for biquad~, got: {:?}",
+            errors
+        );
     }
 
     #[test]
     fn invalid_maxclass_detected() {
         let json = make_maxpat(
-            vec![json!({"box": {"id": "obj-1", "maxclass": "outlet~", "numinlets": 1, "numoutlets": 0, "patching_rect": [0, 0, 30, 30]}})],
+            vec![
+                json!({"box": {"id": "obj-1", "maxclass": "outlet~", "numinlets": 1, "numoutlets": 0, "patching_rect": [0, 0, 30, 30]}}),
+            ],
             vec![],
         );
         let errors = validate_static(&json);
-        let mc_errors: Vec<_> = errors.iter().filter(|e| e.error_type == StaticErrorType::InvalidMaxclass).collect();
+        let mc_errors: Vec<_> = errors
+            .iter()
+            .filter(|e| e.error_type == StaticErrorType::InvalidMaxclass)
+            .collect();
         assert_eq!(mc_errors.len(), 1);
         assert!(mc_errors[0].message.contains("outlet~"));
     }
@@ -962,17 +1095,35 @@ mod tests {
             vec![],
         );
         let errors = validate_static(&json);
-        let mc_errors: Vec<_> = errors.iter().filter(|e| e.error_type == StaticErrorType::InvalidMaxclass).collect();
+        let mc_errors: Vec<_> = errors
+            .iter()
+            .filter(|e| e.error_type == StaticErrorType::InvalidMaxclass)
+            .collect();
         assert!(mc_errors.is_empty());
     }
 
     #[test]
     fn static_error_type_display() {
-        assert_eq!(format!("{}", StaticErrorType::UnknownObject), "unknown_object");
-        assert_eq!(format!("{}", StaticErrorType::InletCountMismatch), "inlet_count_mismatch");
-        assert_eq!(format!("{}", StaticErrorType::OutletCountMismatch), "outlet_count_mismatch");
-        assert_eq!(format!("{}", StaticErrorType::SignalControlMismatch), "signal_control_mismatch");
-        assert_eq!(format!("{}", StaticErrorType::InvalidMaxclass), "invalid_maxclass");
+        assert_eq!(
+            format!("{}", StaticErrorType::UnknownObject),
+            "unknown_object"
+        );
+        assert_eq!(
+            format!("{}", StaticErrorType::InletCountMismatch),
+            "inlet_count_mismatch"
+        );
+        assert_eq!(
+            format!("{}", StaticErrorType::OutletCountMismatch),
+            "outlet_count_mismatch"
+        );
+        assert_eq!(
+            format!("{}", StaticErrorType::SignalControlMismatch),
+            "signal_control_mismatch"
+        );
+        assert_eq!(
+            format!("{}", StaticErrorType::InvalidMaxclass),
+            "invalid_maxclass"
+        );
     }
 
     #[test]
@@ -1095,10 +1246,7 @@ mod tests {
 
     #[test]
     fn objdb_none_unknown_object_same_as_validate_static() {
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "nonexistent_obj", 1, 1)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "nonexistent_obj", 1, 1)], vec![]);
         let errors_old = validate_static(&maxpat);
         let errors_new = validate_static_with_objdb(&maxpat, None);
         assert_eq!(errors_old.len(), errors_new.len());
@@ -1108,21 +1256,19 @@ mod tests {
     #[test]
     fn objdb_recognizes_cycle_from_objdb() {
         let db = make_test_objdb();
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "cycle~ 440", 2, 1)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "cycle~ 440", 2, 1)], vec![]);
         let errors = validate_static_with_objdb(&maxpat, Some(&db));
-        assert!(errors.is_empty(), "Expected no errors with objdb, got: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "Expected no errors with objdb, got: {:?}",
+            errors
+        );
     }
 
     #[test]
     fn objdb_detects_inlet_mismatch() {
         let db = make_test_objdb();
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "cycle~ 440", 5, 1)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "cycle~ 440", 5, 1)], vec![]);
         let errors = validate_static_with_objdb(&maxpat, Some(&db));
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].error_type, StaticErrorType::InletCountMismatch);
@@ -1133,10 +1279,7 @@ mod tests {
     #[test]
     fn objdb_detects_outlet_mismatch() {
         let db = make_test_objdb();
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "cycle~ 440", 2, 5)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "cycle~ 440", 2, 5)], vec![]);
         let errors = validate_static_with_objdb(&maxpat, Some(&db));
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].error_type, StaticErrorType::OutletCountMismatch);
@@ -1148,10 +1291,7 @@ mod tests {
     fn objdb_variable_outlets_no_false_positive() {
         let db = make_test_objdb();
         // trigger has variable outlets in the objdb
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "trigger b b b", 1, 3)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "trigger b b b", 1, 3)], vec![]);
         let errors = validate_static_with_objdb(&maxpat, Some(&db));
         assert!(
             errors.is_empty(),
@@ -1164,10 +1304,7 @@ mod tests {
     fn objdb_unknown_object_falls_back_to_builtin() {
         let db = make_test_objdb();
         // dac~ is NOT in our test objdb but IS in the builtin db
-        let maxpat = make_maxpat(
-            vec![newobj_box("obj-1", "dac~", 2, 0)],
-            vec![],
-        );
+        let maxpat = make_maxpat(vec![newobj_box("obj-1", "dac~", 2, 0)], vec![]);
         let errors = validate_static_with_objdb(&maxpat, Some(&db));
         assert!(
             errors.is_empty(),

@@ -1,6 +1,9 @@
 pub mod validate;
 
-use flutmax_codegen::{build_graph, build_graph_with_objdb, generate, generate_with_options, generate_with_ui, BuildError, CodeFiles, CodegenError, GenerateOptions, UiData};
+use flutmax_codegen::{
+    build_graph, build_graph_with_objdb, generate, generate_with_options, generate_with_ui,
+    BuildError, CodeFiles, CodegenError, GenerateOptions, UiData,
+};
 use flutmax_objdb::ObjectDb;
 use flutmax_parser::parse;
 use flutmax_sema::registry::AbstractionRegistry;
@@ -20,7 +23,11 @@ impl std::fmt::Display for CompileError {
         match self {
             CompileError::Parse(e) => write!(f, "parse error: {}", e),
             CompileError::Type(errors) => {
-                let msg = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n");
+                let msg = errors
+                    .iter()
+                    .map(|e| format!("{}", e))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 write!(f, "{}", msg)
             }
             CompileError::BuildGraph(e) => write!(f, "graph build error: {}", e),
@@ -54,7 +61,11 @@ pub fn compile(source: &str) -> Result<String, Box<dyn std::error::Error>> {
     let ast = parse(source)?;
     let type_errors = type_check(&ast);
     if !type_errors.is_empty() {
-        let msg = type_errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n");
+        let msg = type_errors
+            .iter()
+            .map(|e| format!("{}", e))
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(msg.into());
     }
     let graph = build_graph(&ast)?;
@@ -92,7 +103,11 @@ pub fn compile_full(
     let ast = parse(source)?;
     let type_errors = type_check_with_registry(&ast, registry);
     if !type_errors.is_empty() {
-        let msg = type_errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n");
+        let msg = type_errors
+            .iter()
+            .map(|e| format!("{}", e))
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(msg.into());
     }
     let graph = build_graph_with_objdb(&ast, registry, code_files, objdb)?;
@@ -105,11 +120,17 @@ pub fn compile_rnbo(source: &str) -> Result<String, Box<dyn std::error::Error>> 
     let ast = parse(source)?;
     let type_errors = type_check(&ast);
     if !type_errors.is_empty() {
-        let msg = type_errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n");
+        let msg = type_errors
+            .iter()
+            .map(|e| format!("{}", e))
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(msg.into());
     }
     let graph = build_graph(&ast)?;
-    let opts = GenerateOptions { classnamespace: "rnbo".to_string() };
+    let opts = GenerateOptions {
+        classnamespace: "rnbo".to_string(),
+    };
     let json = generate_with_options(&graph, &opts)?;
     Ok(json)
 }
@@ -125,7 +146,11 @@ pub fn compile_full_with_ui(
     let ast = parse(source)?;
     let type_errors = type_check_with_registry(&ast, registry);
     if !type_errors.is_empty() {
-        let msg = type_errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n");
+        let msg = type_errors
+            .iter()
+            .map(|e| format!("{}", e))
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(msg.into());
     }
     let graph = build_graph_with_objdb(&ast, registry, code_files, objdb)?;
@@ -145,11 +170,17 @@ pub fn compile_gen(source: &str) -> Result<String, Box<dyn std::error::Error>> {
         .filter(|e| e.code != "E001" && e.code != "E005")
         .collect();
     if !type_errors.is_empty() {
-        let msg = type_errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n");
+        let msg = type_errors
+            .iter()
+            .map(|e| format!("{}", e))
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(msg.into());
     }
     let graph = build_graph(&ast)?;
-    let opts = GenerateOptions { classnamespace: "dsp.gen".to_string() };
+    let opts = GenerateOptions {
+        classnamespace: "dsp.gen".to_string(),
+    };
     let json = generate_with_options(&graph, &opts)?;
     Ok(json)
 }

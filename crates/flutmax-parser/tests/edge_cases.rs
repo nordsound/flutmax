@@ -309,7 +309,10 @@ fn integer_literal() {
     let prog = parse(source).unwrap();
     match &prog.wires[0].value {
         flutmax_ast::Expr::Call { args, .. } => {
-            assert_eq!(args[0].value, flutmax_ast::Expr::Lit(flutmax_ast::LitValue::Int(440)));
+            assert_eq!(
+                args[0].value,
+                flutmax_ast::Expr::Lit(flutmax_ast::LitValue::Int(440))
+            );
         }
         _ => panic!("expected Call"),
     }
@@ -345,7 +348,10 @@ fn zero_literal() {
     let prog = parse(source).unwrap();
     match &prog.wires[0].value {
         flutmax_ast::Expr::Call { args, .. } => {
-            assert_eq!(args[0].value, flutmax_ast::Expr::Lit(flutmax_ast::LitValue::Int(0)));
+            assert_eq!(
+                args[0].value,
+                flutmax_ast::Expr::Lit(flutmax_ast::LitValue::Int(0))
+            );
         }
         _ => panic!("expected Call"),
     }

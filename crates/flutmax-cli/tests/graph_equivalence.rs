@@ -49,12 +49,8 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
         serde_json::from_str(maxpat_json).expect("failed to parse .maxpat JSON");
 
     let patcher = &root["patcher"];
-    let boxes = patcher["boxes"]
-        .as_array()
-        .expect("missing boxes array");
-    let lines = patcher["lines"]
-        .as_array()
-        .expect("missing lines array");
+    let boxes = patcher["boxes"].as_array().expect("missing boxes array");
+    let lines = patcher["lines"].as_array().expect("missing lines array");
 
     // First pass: compute the raw text for each box and count occurrences.
     let mut raw_texts: Vec<(String, String, String)> = Vec::new(); // (id, maxclass, raw_text)
@@ -63,13 +59,13 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
     for box_wrapper in boxes {
         let b = &box_wrapper["box"];
         let id = b["id"].as_str().expect("box missing id").to_string();
-        let maxclass = b["maxclass"].as_str().expect("box missing maxclass").to_string();
+        let maxclass = b["maxclass"]
+            .as_str()
+            .expect("box missing maxclass")
+            .to_string();
 
         let raw_text = if maxclass == "newobj" {
-            b["text"]
-                .as_str()
-                .expect("newobj missing text")
-                .to_string()
+            b["text"].as_str().expect("newobj missing text").to_string()
         } else {
             match b.get("comment").and_then(|c| c.as_str()) {
                 Some(comment) if !comment.is_empty() => {
@@ -241,10 +237,8 @@ fn test_abstraction_directory_compile() {
     let fm_source = read_abstraction_fixture("fm_synth.flutmax");
 
     // 2. Parse both
-    let osc_ast = flutmax_parser::parse(&osc_source)
-        .expect("oscillator.flutmax should parse");
-    let fm_ast = flutmax_parser::parse(&fm_source)
-        .expect("fm_synth.flutmax should parse");
+    let osc_ast = flutmax_parser::parse(&osc_source).expect("oscillator.flutmax should parse");
+    let fm_ast = flutmax_parser::parse(&fm_source).expect("fm_synth.flutmax should parse");
 
     // 3. Register all in the registry
     let mut registry = AbstractionRegistry::new();

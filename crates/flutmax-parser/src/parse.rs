@@ -65,7 +65,13 @@ pub fn parse(source: &str) -> Result<Program, ParseError> {
     for child in root.named_children(&mut cursor) {
         match child.kind() {
             "port_declaration" => {
-                convert_port_declaration(child, source, &mut program, &mut implicit_in_index, &mut implicit_out_index)?;
+                convert_port_declaration(
+                    child,
+                    source,
+                    &mut program,
+                    &mut implicit_in_index,
+                    &mut implicit_out_index,
+                )?;
             }
             "destructuring_wire" => {
                 let dw = convert_destructuring_wire(child, source)?;
@@ -167,7 +173,7 @@ fn convert_port_declaration(
         }
     };
 
-    let port_type = PortType::from_str(type_text).ok_or_else(|| ParseError::InvalidSyntax {
+    let port_type = PortType::parse(type_text).ok_or_else(|| ParseError::InvalidSyntax {
         message: format!("Unknown port type '{}'", type_text),
         line: type_node.start_position().row + 1,
         column: type_node.start_position().column + 1,
@@ -295,7 +301,7 @@ fn convert_feedback_declaration(node: Node, source: &str) -> Result<FeedbackDecl
     let name = node_text(name_node, source).to_string();
     let type_text = node_text(type_node, source);
 
-    let port_type = PortType::from_str(type_text).ok_or_else(|| ParseError::InvalidSyntax {
+    let port_type = PortType::parse(type_text).ok_or_else(|| ParseError::InvalidSyntax {
         message: format!("Unknown port type '{}'", type_text),
         line: type_node.start_position().row + 1,
         column: type_node.start_position().column + 1,
@@ -363,7 +369,7 @@ fn convert_state_declaration(node: Node, source: &str) -> Result<StateDecl, Pars
     let name = node_text(name_node, source).to_string();
     let type_text = node_text(type_node, source);
 
-    let port_type = PortType::from_str(type_text).ok_or_else(|| ParseError::InvalidSyntax {
+    let port_type = PortType::parse(type_text).ok_or_else(|| ParseError::InvalidSyntax {
         message: format!("Unknown control type '{}'", type_text),
         line: type_node.start_position().row + 1,
         column: type_node.start_position().column + 1,
@@ -615,7 +621,9 @@ fn parse_u32(node: Node, source: &str) -> Result<u32, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use flutmax_ast::{DirectConnection, Expr, InDecl, InputPortAccess, LitValue, OutDecl, PortType};
+    use flutmax_ast::{
+        DirectConnection, Expr, InDecl, InputPortAccess, LitValue, OutDecl, PortType,
+    };
 
     #[test]
     fn test_l1_minimal() {
@@ -653,10 +661,7 @@ out[0] = osc;
         // out_assignments
         assert_eq!(prog.out_assignments.len(), 1);
         assert_eq!(prog.out_assignments[0].index, 0);
-        assert_eq!(
-            prog.out_assignments[0].value,
-            Expr::Ref("osc".to_string())
-        );
+        assert_eq!(prog.out_assignments[0].value, Expr::Ref("osc".to_string()));
         assert!(prog.out_assignments[0].span.is_some());
 
         // No in_decls or direct_connections
@@ -728,10 +733,7 @@ out[0] = amp;
         // out_assignments
         assert_eq!(prog.out_assignments.len(), 1);
         assert_eq!(prog.out_assignments[0].index, 0);
-        assert_eq!(
-            prog.out_assignments[0].value,
-            Expr::Ref("amp".to_string())
-        );
+        assert_eq!(prog.out_assignments[0].value, Expr::Ref("amp".to_string()));
         assert!(prog.out_assignments[0].span.is_some());
     }
 
@@ -861,7 +863,9 @@ wire msg = print("hello world");
             prog.wires[0].value,
             Expr::Call {
                 object: "print".to_string(),
-                args: vec![CallArg::positional(Expr::Lit(LitValue::Str("hello world".to_string())))],
+                args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                    "hello world".to_string()
+                )))],
             }
         );
     }
@@ -952,10 +956,7 @@ out 0 (audio): signal;
         assert_eq!(prog.wires.len(), 1);
         assert_eq!(
             prog.wires[0].value,
-            Expr::Tuple(vec![
-                Expr::Ref("x".to_string()),
-                Expr::Ref("y".to_string()),
-            ])
+            Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string()),])
         );
     }
 
@@ -1013,10 +1014,7 @@ out 0 (audio): signal;
         assert_eq!(dw.names, vec!["a", "b"]);
         assert_eq!(
             dw.value,
-            Expr::Tuple(vec![
-                Expr::Ref("x".to_string()),
-                Expr::Ref("y".to_string()),
-            ])
+            Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string()),])
         );
     }
 
@@ -1195,7 +1193,10 @@ out[0] = mixed;
         // .in[N] cannot be used as an expression -> parse error
         let source = "wire x = node.in[0];";
         let result = parse(source);
-        assert!(result.is_err(), ".in[N] should not be valid in expression position");
+        assert!(
+            result.is_err(),
+            ".in[N] should not be valid in expression position"
+        );
     }
 
     // ─── State tests ───
@@ -1450,10 +1451,7 @@ btn.in[0] = click;
         let wire = &prog.wires[0];
         assert_eq!(wire.attrs.len(), 1);
         assert_eq!(wire.attrs[0].key, "parameter_longname");
-        assert_eq!(
-            wire.attrs[0].value,
-            AttrValue::Str("Cutoff".to_string())
-        );
+        assert_eq!(wire.attrs[0].value, AttrValue::Str("Cutoff".to_string()));
     }
 
     #[test]
@@ -1465,10 +1463,7 @@ btn.in[0] = click;
         let wire = &prog.wires[0];
         assert_eq!(wire.attrs.len(), 1);
         assert_eq!(wire.attrs[0].key, "phase");
-        assert_eq!(
-            wire.attrs[0].value,
-            AttrValue::Ident("half".to_string())
-        );
+        assert_eq!(wire.attrs[0].value, AttrValue::Ident("half".to_string()));
     }
 
     #[test]

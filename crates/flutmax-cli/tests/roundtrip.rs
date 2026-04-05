@@ -53,12 +53,8 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
         serde_json::from_str(maxpat_json).expect("failed to parse .maxpat JSON");
 
     let patcher = &root["patcher"];
-    let boxes = patcher["boxes"]
-        .as_array()
-        .expect("missing boxes array");
-    let lines = patcher["lines"]
-        .as_array()
-        .expect("missing lines array");
+    let boxes = patcher["boxes"].as_array().expect("missing boxes array");
+    let lines = patcher["lines"].as_array().expect("missing lines array");
 
     // First pass: compute the raw text for each box and count occurrences.
     // Skip comment boxes — they are non-functional (display only) and the
@@ -82,10 +78,7 @@ fn extract_logical_graph(maxpat_json: &str) -> LogicalGraph {
         }
 
         let raw_text = if maxclass == "newobj" {
-            b["text"]
-                .as_str()
-                .expect("newobj missing text")
-                .to_string()
+            b["text"].as_str().expect("newobj missing text").to_string()
         } else {
             match b.get("comment").and_then(|c| c.as_str()) {
                 Some(comment) if !comment.is_empty() => {

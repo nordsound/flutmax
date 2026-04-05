@@ -58,7 +58,12 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: impl Into<String>, line: usize, column: usize) -> Self {
+    pub fn new(
+        token_type: TokenType,
+        lexeme: impl Into<String>,
+        line: usize,
+        column: usize,
+    ) -> Self {
         Self {
             token_type,
             lexeme: lexeme.into(),

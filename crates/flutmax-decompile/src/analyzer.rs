@@ -198,7 +198,10 @@ fn is_gen_outlet(b: &MaxBox, is_gen: bool) -> bool {
 ///
 /// When `objdb` is provided, wire expressions use named arguments from
 /// inlet descriptions (e.g., `biquad~(input: osc, frequency: cutoff)`).
-pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPatch, DecompileError> {
+pub fn analyze(
+    maxpat: &MaxPat,
+    objdb: Option<&ObjectDb>,
+) -> Result<DecompiledPatch, DecompileError> {
     let box_map: HashMap<&str, &MaxBox> = maxpat.boxes.iter().map(|b| (b.id.as_str(), b)).collect();
 
     // Step 1: Remove trigger nodes and rewire connections
@@ -211,7 +214,11 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
     // by destination box coordinates: X descending (right first), Y descending
     // (bottom first) as tiebreaker. Skip fan-outs whose order was already defined
     // by explicit trigger outlet indices.
-    sort_fanout_lines(&mut effective_lines, &box_map, &trigger_result.trigger_ordered_sources);
+    sort_fanout_lines(
+        &mut effective_lines,
+        &box_map,
+        &trigger_result.trigger_ordered_sources,
+    );
 
     // Step 2: Classify boxes
     let is_rnbo = maxpat.classnamespace.as_deref() == Some("rnbo");
@@ -245,7 +252,8 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
     // For standard Max, sort by X coordinate (left to right = port index).
     if is_gen || is_rnbo {
         let text_num = |b: &&MaxBox| -> u32 {
-            b.text.as_deref()
+            b.text
+                .as_deref()
                 .and_then(|t| t.split_whitespace().nth(1))
                 .and_then(|n| n.parse::<u32>().ok())
                 .unwrap_or(0)
@@ -253,8 +261,16 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
         inlet_boxes.sort_by_key(text_num);
         outlet_boxes.sort_by_key(text_num);
     } else {
-        inlet_boxes.sort_by(|a, b| a.patching_rect_x().partial_cmp(&b.patching_rect_x()).unwrap_or(std::cmp::Ordering::Equal));
-        outlet_boxes.sort_by(|a, b| a.patching_rect_x().partial_cmp(&b.patching_rect_x()).unwrap_or(std::cmp::Ordering::Equal));
+        inlet_boxes.sort_by(|a, b| {
+            a.patching_rect_x()
+                .partial_cmp(&b.patching_rect_x())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        outlet_boxes.sort_by(|a, b| {
+            a.patching_rect_x()
+                .partial_cmp(&b.patching_rect_x())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
     let in_decls = build_in_decls(&inlet_boxes);
     let mut out_decls = build_out_decls(&outlet_boxes);
@@ -371,7 +387,11 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
         msg_used_names.insert(name.clone());
         msg_wire_names.insert(b.id.as_str(), name.clone());
         let (functional_attrs, decorative_attrs) = build_box_attrs_split(b);
-        messages.push(MsgInfo { name: name.clone(), content, attrs: functional_attrs });
+        messages.push(MsgInfo {
+            name: name.clone(),
+            content,
+            attrs: functional_attrs,
+        });
         ui_entries.push(UiEntryInfo {
             name: name.clone(),
             rect: b.patching_rect,
@@ -380,7 +400,13 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
     }
 
     // Step 5: Topological sort of wire candidates
-    let sorted_ids = topological_sort(&wire_candidate_ids, &incoming_map, &trigger_ids, &effective_lines, &box_map)?;
+    let sorted_ids = topological_sort(
+        &wire_candidate_ids,
+        &incoming_map,
+        &trigger_ids,
+        &effective_lines,
+        &box_map,
+    )?;
 
     // Step 6: Build wire names
     // Use the same names as build_in_decls() to ensure consistency between
@@ -388,9 +414,7 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
     let inlet_id_to_name: HashMap<&str, String> = inlet_boxes
         .iter()
         .enumerate()
-        .map(|(i, b)| {
-            (b.id.as_str(), in_decls[i].name.clone())
-        })
+        .map(|(i, b)| (b.id.as_str(), in_decls[i].name.clone()))
         .collect();
 
     let mut wire_names: HashMap<&str, String> = HashMap::new();
@@ -463,7 +487,7 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
         }
     }
     // Also include message boxes (they have 1 outlet by default)
-    for (_, name) in &msg_wire_names {
+    for name in msg_wire_names.values() {
         wire_numoutlets.insert(name.as_str(), 1);
     }
 
@@ -472,7 +496,16 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
 
     for id in &sorted_ids {
         let b = box_map.get(id).unwrap();
-        let result = build_wire_expr(b, &incoming_map, &wire_names, &inlet_id_to_name, &in_port_names, &defined_names, &wire_numoutlets, objdb)?;
+        let result = build_wire_expr(
+            b,
+            &incoming_map,
+            &wire_names,
+            &inlet_id_to_name,
+            &in_port_names,
+            &defined_names,
+            &wire_numoutlets,
+            objdb,
+        )?;
         let name = wire_names.get(id).unwrap().clone();
         defined_names.insert(name.clone());
 
@@ -498,7 +531,11 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
         }
 
         let (functional_attrs, decorative_attrs) = build_box_attrs_split(b);
-        wires.push(WireInfo { name: name.clone(), expr, attrs: functional_attrs });
+        wires.push(WireInfo {
+            name: name.clone(),
+            expr,
+            attrs: functional_attrs,
+        });
         ui_entries.push(UiEntryInfo {
             name,
             rect: b.patching_rect,
@@ -549,11 +586,8 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
         if let Some(msg_name) = msg_wire_names.get(b.id.as_str()) {
             if let Some(conns) = incoming_map.get(b.id.as_str()) {
                 for (inlet_idx, conn) in conns {
-                    let source_name = resolve_source_name(
-                        &conn.source_id,
-                        &wire_names,
-                        &inlet_id_to_name,
-                    );
+                    let source_name =
+                        resolve_source_name(&conn.source_id, &wire_names, &inlet_id_to_name);
                     // Skip unknown/undefined sources
                     if source_name.starts_with("unknown_") {
                         continue;
@@ -567,7 +601,8 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
                     } else {
                         source_name
                     };
-                    let qualified_source = qualify_multi_outlet_source(&qualified_source, &wire_numoutlets);
+                    let qualified_source =
+                        qualify_multi_outlet_source(&qualified_source, &wire_numoutlets);
                     direct_connections.push(DirectConnectionInfo {
                         target_wire: msg_name.clone(),
                         inlet: *inlet_idx,
@@ -583,7 +618,11 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
     // where type is already determined from text prefix.
     for (i, ob) in outlet_boxes.iter().enumerate() {
         // RNBO outlets have explicit types from text; don't override them
-        let text_prefix = ob.text.as_deref().and_then(|t| t.split_whitespace().next()).unwrap_or("");
+        let text_prefix = ob
+            .text
+            .as_deref()
+            .and_then(|t| t.split_whitespace().next())
+            .unwrap_or("");
         if matches!(text_prefix, "outport" | "out~") {
             continue;
         }
@@ -605,10 +644,9 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
                             .unwrap_or(&src_box.maxclass);
                         if (obj_name.ends_with('~') || src_box.maxclass.ends_with('~'))
                             && !is_signal_to_control_object(obj_name)
+                            && i < out_decls.len()
                         {
-                            if i < out_decls.len() {
-                                out_decls[i].port_type = "signal".to_string();
-                            }
+                            out_decls[i].port_type = "signal".to_string();
                         }
                     }
                 }
@@ -622,11 +660,8 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
         if let Some(conns) = incoming_map.get(ob.id.as_str()) {
             for (inlet, conn) in conns {
                 if *inlet == 0 {
-                    let source_name = resolve_source_name(
-                        &conn.source_id,
-                        &wire_names,
-                        &inlet_id_to_name,
-                    );
+                    let source_name =
+                        resolve_source_name(&conn.source_id, &wire_names, &inlet_id_to_name);
                     // Skip back-edge references from cycle breaking
                     if !defined_names.contains(&source_name) {
                         continue;
@@ -638,7 +673,8 @@ pub fn analyze(maxpat: &MaxPat, objdb: Option<&ObjectDb>) -> Result<DecompiledPa
                         source_name
                     };
                     // Qualify with .out[0] if the source has multiple outlets to avoid E020
-                    let qualified_name = qualify_multi_outlet_source(&qualified_name, &wire_numoutlets);
+                    let qualified_name =
+                        qualify_multi_outlet_source(&qualified_name, &wire_numoutlets);
                     out_assignments.push(OutAssignInfo {
                         index: i as u32,
                         wire_name: qualified_name,
@@ -731,8 +767,16 @@ pub fn analyze_recursive(
             // Recursive call for nested subpatchers
             let (sub_patch, nested_subs) = analyze_recursive(embedded, &sub_name, objdb)?;
             subpatcher_names.insert(b.id.clone(), sub_name.clone());
-            let inlet_names: Vec<String> = sub_patch.in_decls.iter().map(|d| d.name.clone()).collect();
-            subpatcher_io.insert(b.id.clone(), SubpatcherInfo { inlet_count, outlet_count, inlet_names });
+            let inlet_names: Vec<String> =
+                sub_patch.in_decls.iter().map(|d| d.name.clone()).collect();
+            subpatcher_io.insert(
+                b.id.clone(),
+                SubpatcherInfo {
+                    inlet_count,
+                    outlet_count,
+                    inlet_names,
+                },
+            );
             subpatchers.push((sub_name, sub_patch));
             subpatchers.extend(nested_subs);
         }
@@ -760,7 +804,12 @@ fn extract_subpatcher_name(b: &MaxBox, parent_name: &str, counter: &AtomicU32) -
         let parts: Vec<&str> = text.split_whitespace().collect();
         if parts.len() >= 2 {
             let prefix = parts[0];
-            if prefix == "p" || prefix == "patcher" || prefix == "poly~" || prefix == "pfft~" || prefix == "rnbo~" {
+            if prefix == "p"
+                || prefix == "patcher"
+                || prefix == "poly~"
+                || prefix == "pfft~"
+                || prefix == "rnbo~"
+            {
                 let raw = parts[1];
                 // Strip file extension if present
                 let name = raw.strip_suffix(".maxpat").unwrap_or(raw);
@@ -807,7 +856,11 @@ fn analyze_with_subpatchers(
     let trigger_ids = trigger_result.trigger_ids;
 
     // Step 1b: Sort fan-out destinations by Max execution order.
-    sort_fanout_lines(&mut effective_lines, &box_map, &trigger_result.trigger_ordered_sources);
+    sort_fanout_lines(
+        &mut effective_lines,
+        &box_map,
+        &trigger_result.trigger_ordered_sources,
+    );
 
     // Step 2: Classify boxes
     let is_rnbo = maxpat.classnamespace.as_deref() == Some("rnbo");
@@ -846,7 +899,8 @@ fn analyze_with_subpatchers(
     // For standard Max, sort by X coordinate (left to right = port index).
     if is_gen || is_rnbo {
         let text_num = |b: &&MaxBox| -> u32 {
-            b.text.as_deref()
+            b.text
+                .as_deref()
                 .and_then(|t| t.split_whitespace().nth(1))
                 .and_then(|n| n.parse::<u32>().ok())
                 .unwrap_or(0)
@@ -854,8 +908,16 @@ fn analyze_with_subpatchers(
         inlet_boxes.sort_by_key(text_num);
         outlet_boxes.sort_by_key(text_num);
     } else {
-        inlet_boxes.sort_by(|a, b| a.patching_rect_x().partial_cmp(&b.patching_rect_x()).unwrap_or(std::cmp::Ordering::Equal));
-        outlet_boxes.sort_by(|a, b| a.patching_rect_x().partial_cmp(&b.patching_rect_x()).unwrap_or(std::cmp::Ordering::Equal));
+        inlet_boxes.sort_by(|a, b| {
+            a.patching_rect_x()
+                .partial_cmp(&b.patching_rect_x())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        outlet_boxes.sort_by(|a, b| {
+            a.patching_rect_x()
+                .partial_cmp(&b.patching_rect_x())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
     let in_decls = build_in_decls(&inlet_boxes);
     let mut out_decls = build_out_decls(&outlet_boxes);
@@ -968,7 +1030,11 @@ fn analyze_with_subpatchers(
         msg_used_names.insert(name.clone());
         msg_wire_names.insert(b.id.as_str(), name.clone());
         let (functional_attrs, decorative_attrs) = build_box_attrs_split(b);
-        messages.push(MsgInfo { name: name.clone(), content, attrs: functional_attrs });
+        messages.push(MsgInfo {
+            name: name.clone(),
+            content,
+            attrs: functional_attrs,
+        });
         ui_entries.push(UiEntryInfo {
             name: name.clone(),
             rect: b.patching_rect,
@@ -977,7 +1043,13 @@ fn analyze_with_subpatchers(
     }
 
     // Step 5: Topological sort of wire candidates
-    let sorted_ids = topological_sort(&wire_candidate_ids, &incoming_map, &trigger_ids, &effective_lines, &box_map)?;
+    let sorted_ids = topological_sort(
+        &wire_candidate_ids,
+        &incoming_map,
+        &trigger_ids,
+        &effective_lines,
+        &box_map,
+    )?;
 
     // Step 6: Build wire names
     // Use the same names as build_in_decls() to ensure consistency between
@@ -985,9 +1057,7 @@ fn analyze_with_subpatchers(
     let inlet_id_to_name: HashMap<&str, String> = inlet_boxes
         .iter()
         .enumerate()
-        .map(|(i, b)| {
-            (b.id.as_str(), in_decls[i].name.clone())
-        })
+        .map(|(i, b)| (b.id.as_str(), in_decls[i].name.clone()))
         .collect();
 
     let mut wire_names: HashMap<&str, String> = HashMap::new();
@@ -1053,7 +1123,7 @@ fn analyze_with_subpatchers(
             }
         }
     }
-    for (_, name) in &msg_wire_names {
+    for name in msg_wire_names.values() {
         wire_numoutlets.insert(name.as_str(), 1);
     }
 
@@ -1077,8 +1147,21 @@ fn analyze_with_subpatchers(
             )?;
             (e, sub_extra, Vec::new())
         } else {
-            let result = build_wire_expr(b, &incoming_map, &wire_names, &inlet_id_to_name, &in_port_names, &defined_names, &wire_numoutlets, objdb)?;
-            (result.expr, result.extra_connections, result.deferred_back_edges)
+            let result = build_wire_expr(
+                b,
+                &incoming_map,
+                &wire_names,
+                &inlet_id_to_name,
+                &in_port_names,
+                &defined_names,
+                &wire_numoutlets,
+                objdb,
+            )?;
+            (
+                result.expr,
+                result.extra_connections,
+                result.deferred_back_edges,
+            )
         };
 
         let name = wire_names.get(id).unwrap().clone();
@@ -1106,7 +1189,11 @@ fn analyze_with_subpatchers(
         }
 
         let (functional_attrs, decorative_attrs) = build_box_attrs_split(b);
-        wires.push(WireInfo { name: name.clone(), expr, attrs: functional_attrs });
+        wires.push(WireInfo {
+            name: name.clone(),
+            expr,
+            attrs: functional_attrs,
+        });
         ui_entries.push(UiEntryInfo {
             name,
             rect: b.patching_rect,
@@ -1154,11 +1241,8 @@ fn analyze_with_subpatchers(
         if let Some(msg_name) = msg_wire_names.get(b.id.as_str()) {
             if let Some(conns) = incoming_map.get(b.id.as_str()) {
                 for (inlet_idx, conn) in conns {
-                    let source_name = resolve_source_name(
-                        &conn.source_id,
-                        &wire_names,
-                        &inlet_id_to_name,
-                    );
+                    let source_name =
+                        resolve_source_name(&conn.source_id, &wire_names, &inlet_id_to_name);
                     if source_name.starts_with("unknown_") {
                         continue;
                     }
@@ -1171,7 +1255,8 @@ fn analyze_with_subpatchers(
                     } else {
                         source_name
                     };
-                    let qualified_source = qualify_multi_outlet_source(&qualified_source, &wire_numoutlets);
+                    let qualified_source =
+                        qualify_multi_outlet_source(&qualified_source, &wire_numoutlets);
                     direct_connections.push(DirectConnectionInfo {
                         target_wire: msg_name.clone(),
                         inlet: *inlet_idx,
@@ -1186,7 +1271,11 @@ fn analyze_with_subpatchers(
     // Skip RNBO outlet boxes (outport/out~) and gen~ outlet boxes (out N)
     // where type is already determined from text prefix.
     for (i, ob) in outlet_boxes.iter().enumerate() {
-        let text_prefix = ob.text.as_deref().and_then(|t| t.split_whitespace().next()).unwrap_or("");
+        let text_prefix = ob
+            .text
+            .as_deref()
+            .and_then(|t| t.split_whitespace().next())
+            .unwrap_or("");
         if matches!(text_prefix, "outport" | "out~") {
             continue;
         }
@@ -1207,10 +1296,9 @@ fn analyze_with_subpatchers(
                             .unwrap_or(&src_box.maxclass);
                         if (obj_name.ends_with('~') || src_box.maxclass.ends_with('~'))
                             && !is_signal_to_control_object(obj_name)
+                            && i < out_decls.len()
                         {
-                            if i < out_decls.len() {
-                                out_decls[i].port_type = "signal".to_string();
-                            }
+                            out_decls[i].port_type = "signal".to_string();
                         }
                     }
                 }
@@ -1224,11 +1312,8 @@ fn analyze_with_subpatchers(
         if let Some(conns) = incoming_map.get(ob.id.as_str()) {
             for (inlet, conn) in conns {
                 if *inlet == 0 {
-                    let source_name = resolve_source_name(
-                        &conn.source_id,
-                        &wire_names,
-                        &inlet_id_to_name,
-                    );
+                    let source_name =
+                        resolve_source_name(&conn.source_id, &wire_names, &inlet_id_to_name);
                     if !defined_names.contains(&source_name) {
                         continue;
                     }
@@ -1238,7 +1323,8 @@ fn analyze_with_subpatchers(
                         source_name
                     };
                     // Qualify with .out[0] if the source has multiple outlets to avoid E020
-                    let qualified_name = qualify_multi_outlet_source(&qualified_name, &wire_numoutlets);
+                    let qualified_name =
+                        qualify_multi_outlet_source(&qualified_name, &wire_numoutlets);
                     out_assignments.push(OutAssignInfo {
                         index: i as u32,
                         wire_name: qualified_name,
@@ -1487,12 +1573,8 @@ fn remove_triggers<'a>(
 
     for trigger_id in &trigger_ids {
         // Get all non-trigger source(s) by chaining through trigger inputs
-        let ultimate_sources = resolve_trigger_sources(
-            trigger_id,
-            &trigger_input_sources,
-            &trigger_ids,
-            0,
-        );
+        let ultimate_sources =
+            resolve_trigger_sources(trigger_id, &trigger_input_sources, &trigger_ids, 0);
 
         // Collect all outlets for this trigger
         let trigger_box = box_map.get(trigger_id);
@@ -1574,7 +1656,9 @@ fn sort_fanout_lines(
 ) {
     lines.sort_by(|a, b| {
         // Only reorder lines that share the same source outlet
-        let source_cmp = a.source_id.cmp(&b.source_id)
+        let source_cmp = a
+            .source_id
+            .cmp(&b.source_id)
             .then(a.source_outlet.cmp(&b.source_outlet));
         if source_cmp != std::cmp::Ordering::Equal {
             return source_cmp;
@@ -1590,11 +1674,13 @@ fn sort_fanout_lines(
         match (a_box, b_box) {
             (Some(ab), Some(bb)) => {
                 // X descending (right first), then Y descending (bottom first)
-                bb.patching_rect[0].partial_cmp(&ab.patching_rect[0])
+                bb.patching_rect[0]
+                    .partial_cmp(&ab.patching_rect[0])
                     .unwrap_or(std::cmp::Ordering::Equal)
                     .then(
-                        bb.patching_rect[1].partial_cmp(&ab.patching_rect[1])
-                            .unwrap_or(std::cmp::Ordering::Equal)
+                        bb.patching_rect[1]
+                            .partial_cmp(&ab.patching_rect[1])
+                            .unwrap_or(std::cmp::Ordering::Equal),
                     )
             }
             _ => std::cmp::Ordering::Equal,
@@ -1608,9 +1694,9 @@ fn is_trigger_node(b: &MaxBox) -> bool {
     if b.maxclass != "newobj" {
         return false;
     }
-    b.text
-        .as_deref()
-        .map_or(false, |t| t == "trigger" || t.starts_with("trigger ") || t == "t" || t.starts_with("t "))
+    b.text.as_deref().is_some_and(|t| {
+        t == "trigger" || t.starts_with("trigger ") || t == "t" || t.starts_with("t ")
+    })
 }
 
 /// Check if a trigger node is value-preserving (all outlets use non-bang types).
@@ -1634,16 +1720,27 @@ fn is_value_preserving_trigger(b: &MaxBox) -> bool {
         return false;
     }
     // All argument types must be value-preserving (non-bang)
-    parts[1..].iter().all(|arg| matches!(*arg, "f" | "i" | "l" | "a" | "s"))
+    parts[1..]
+        .iter()
+        .all(|arg| matches!(*arg, "f" | "i" | "l" | "a" | "s"))
 }
 
 /// Check if an object name represents a signal-to-control converter.
 /// These objects end with ~ (accept signal input) but output control values.
 fn is_signal_to_control_object(name: &str) -> bool {
-    matches!(name,
-        "snapshot~" | "peakamp~" | "zerox~" | "thresh~" |
-        "edge~" | "capture~" | "spike~" |
-        "fiddle~" | "pitch~" | "bonk~" | "sigmund~"
+    matches!(
+        name,
+        "snapshot~"
+            | "peakamp~"
+            | "zerox~"
+            | "thresh~"
+            | "edge~"
+            | "capture~"
+            | "spike~"
+            | "fiddle~"
+            | "pitch~"
+            | "bonk~"
+            | "sigmund~"
     )
 }
 
@@ -1667,7 +1764,7 @@ fn build_in_decls(inlet_boxes: &[&MaxBox]) -> Vec<InDeclInfo> {
                         .text
                         .as_deref()
                         .and_then(|t| t.split_whitespace().nth(1))
-                        .map(|n| sanitize_name(n));
+                        .map(sanitize_name);
                     ("float".to_string(), name)
                 }
                 // gen~ inlet: `in N` — all I/O is signal rate
@@ -1704,7 +1801,11 @@ fn build_in_decls(inlet_boxes: &[&MaxBox]) -> Vec<InDeclInfo> {
                             None
                         } else {
                             let s = sanitize_name(c);
-                            if s.is_empty() { None } else { Some(s) }
+                            if s.is_empty() {
+                                None
+                            } else {
+                                Some(s)
+                            }
                         }
                     })
                 })
@@ -1738,7 +1839,7 @@ fn build_out_decls(outlet_boxes: &[&MaxBox]) -> Vec<OutDeclInfo> {
                         .text
                         .as_deref()
                         .and_then(|t| t.split_whitespace().nth(1))
-                        .map(|n| sanitize_name(n));
+                        .map(sanitize_name);
                     ("float".to_string(), name)
                 }
                 // gen~ outlet: `out N` — all I/O is signal rate
@@ -1768,7 +1869,11 @@ fn build_out_decls(outlet_boxes: &[&MaxBox]) -> Vec<OutDeclInfo> {
                             None
                         } else {
                             let s = sanitize_name(c);
-                            if s.is_empty() { None } else { Some(s) }
+                            if s.is_empty() {
+                                None
+                            } else {
+                                Some(s)
+                            }
                         }
                     })
                 })
@@ -1842,14 +1947,14 @@ fn topological_sort<'a>(
                 let a_box = box_map.get(a);
                 let b_box = box_map.get(b);
                 match (a_box, b_box) {
-                    (Some(ab), Some(bb)) => {
-                        bb.patching_rect[0].partial_cmp(&ab.patching_rect[0])
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                            .then(
-                                bb.patching_rect[1].partial_cmp(&ab.patching_rect[1])
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            )
-                    }
+                    (Some(ab), Some(bb)) => bb.patching_rect[0]
+                        .partial_cmp(&ab.patching_rect[0])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then(
+                            bb.patching_rect[1]
+                                .partial_cmp(&ab.patching_rect[1])
+                                .unwrap_or(std::cmp::Ordering::Equal),
+                        ),
                     _ => std::cmp::Ordering::Equal,
                 }
             })
@@ -1994,7 +2099,9 @@ fn normalize_inlet_name(description: &str) -> Option<String> {
     let parts: Vec<&str> = s.split('_').filter(|p| !p.is_empty()).collect();
     let result = parts.join("_");
     // Strip leading digits (identifiers must start with a letter or _)
-    let result = result.trim_start_matches(|c: char| c.is_ascii_digit()).to_string();
+    let result = result
+        .trim_start_matches(|c: char| c.is_ascii_digit())
+        .to_string();
     if result.is_empty() || result.len() > 20 {
         None
     } else {
@@ -2020,7 +2127,11 @@ fn annotate_named_args(args: &mut [String], obj_name: &str, inlet_arg_count: usi
     // If any inlet lacks a usable name, fall back to all-positional
     // to avoid confusing mixed output.
     let names: Vec<Option<String>> = (0..inlet_arg_count)
-        .map(|i| inlets.get(i).and_then(|p| normalize_inlet_name(&p.description)))
+        .map(|i| {
+            inlets
+                .get(i)
+                .and_then(|p| normalize_inlet_name(&p.description))
+        })
         .collect();
 
     if names.iter().any(|n| n.is_none()) {
@@ -2048,7 +2159,11 @@ fn annotate_named_args(args: &mut [String], obj_name: &str, inlet_arg_count: usi
 ///
 /// Only annotates args at positions 0..inlet_arg_count (not text args like voice count).
 /// Skips `port_N` fallback names since they carry no semantic meaning.
-fn annotate_subpatcher_named_args(args: &mut [String], inlet_names: &[String], inlet_arg_count: usize) {
+fn annotate_subpatcher_named_args(
+    args: &mut [String],
+    inlet_names: &[String],
+    inlet_arg_count: usize,
+) {
     if inlet_arg_count == 0 || inlet_arg_count > inlet_names.len() {
         return;
     }
@@ -2077,7 +2192,7 @@ struct WireExprResult {
     /// The main wire expression (e.g., `cycle~(440)`)
     expr: String,
     /// Extra connections for fanin (multiple wires to the same inlet)
-    extra_connections: Vec<(u32, String)>,  // (inlet_index, source_wire_name)
+    extra_connections: Vec<(u32, String)>, // (inlet_index, source_wire_name)
     /// Deferred back-edge connections where the source wire hasn't been defined yet.
     /// These should be emitted as direct_connection statements after all wires are defined.
     /// Format: (source_id, source_outlet, inlet_index)
@@ -2129,8 +2244,7 @@ fn build_wire_expr(
     let mut deferred_back_edges: Vec<(String, u32, u32)> = Vec::new();
     if let Some(conns) = incoming_map.get(node.id.as_str()) {
         for (inlet_idx, conn) in conns {
-            let source_name =
-                resolve_source_name(&conn.source_id, wire_names, inlet_names);
+            let source_name = resolve_source_name(&conn.source_id, wire_names, inlet_names);
             // Check if the source is defined (or is an inlet port, which is always available)
             let base_name = source_name.split('.').next().unwrap_or(&source_name);
             if !defined_names.contains(base_name) && !source_name.starts_with("unknown_") {
@@ -2169,7 +2283,11 @@ fn build_wire_expr(
         for (inlet_idx, connected_name) in inlet_connections.drain() {
             extra_connections.push((inlet_idx, connected_name));
         }
-        return Ok(WireExprResult { expr, extra_connections, deferred_back_edges });
+        return Ok(WireExprResult {
+            expr,
+            extra_connections,
+            deferred_back_edges,
+        });
     }
 
     // Determine if this is a pak/pack object whose text args define inlet types
@@ -2203,7 +2321,11 @@ fn build_wire_expr(
             extra_connections.push((inlet_idx, connected_name));
         }
         let expr = format!("{}({})", flutmax_name, args.join(", "));
-        return Ok(WireExprResult { expr, extra_connections, deferred_back_edges });
+        return Ok(WireExprResult {
+            expr,
+            extra_connections,
+            deferred_back_edges,
+        });
     }
 
     // Default value preservation: when text args exist AND any of their
@@ -2223,17 +2345,22 @@ fn build_wire_expr(
     // call args (not defaults). This catches `simpleFM~(w_5, 1.0, w_10)`.
     let has_real_overlap = !literal_args.is_empty()
         && (0..literal_args.len()).any(|i| inlet_connections.contains_key(&(i as u32)));
-    let literals_plus_conns_exact = literal_args.len() + inlet_connections.len() == num_inlets
-        && !has_real_overlap;
+    let literals_plus_conns_exact =
+        literal_args.len() + inlet_connections.len() == num_inlets && !has_real_overlap;
     if has_real_overlap && !literals_plus_conns_exact {
-        let has_overlap = (0..literal_args.len()).any(|i| inlet_connections.contains_key(&(i as u32)));
+        let has_overlap =
+            (0..literal_args.len()).any(|i| inlet_connections.contains_key(&(i as u32)));
         if has_overlap {
             let expr = format!("{}({})", flutmax_name, literal_args.join(", "));
             // Move ALL connections to extra_connections
             for (inlet_idx, connected_name) in inlet_connections.drain() {
                 extra_connections.push((inlet_idx, connected_name));
             }
-            return Ok(WireExprResult { expr, extra_connections, deferred_back_edges });
+            return Ok(WireExprResult {
+                expr,
+                extra_connections,
+                deferred_back_edges,
+            });
         }
     }
 
@@ -2245,12 +2372,24 @@ fn build_wire_expr(
     } else {
         // We need at least enough positions to cover all connections
         std::cmp::max(
-            if inlet_connections.is_empty() { 0 } else { max_connected_inlet + 1 },
+            if inlet_connections.is_empty() {
+                0
+            } else {
+                max_connected_inlet + 1
+            },
             // ... and enough to cover literal args for unconnected inlets
             literal_args.len()
-                + inlet_connections.keys().filter(|&&k| (k as usize) < literal_args.len()).count().min(
-                    if inlet_connections.contains_key(&0) && !literal_args.is_empty() { 1 } else { 0 },
-                ),
+                + inlet_connections
+                    .keys()
+                    .filter(|&&k| (k as usize) < literal_args.len())
+                    .count()
+                    .min(
+                        if inlet_connections.contains_key(&0) && !literal_args.is_empty() {
+                            1
+                        } else {
+                            0
+                        },
+                    ),
         )
     };
 
@@ -2298,7 +2437,10 @@ fn build_wire_expr(
     let mut args: Vec<String> = Vec::new();
     let fill_to = std::cmp::max(
         max_needed,
-        positional_literals.iter().rposition(|l| l.is_some()).map_or(0, |p| p + 1),
+        positional_literals
+            .iter()
+            .rposition(|l| l.is_some())
+            .map_or(0, |p| p + 1),
     );
 
     for i in 0..fill_to {
@@ -2346,7 +2488,11 @@ fn build_wire_expr(
         format!("{}({})", flutmax_name, args.join(", "))
     };
 
-    Ok(WireExprResult { expr, extra_connections, deferred_back_edges })
+    Ok(WireExprResult {
+        expr,
+        extra_connections,
+        deferred_back_edges,
+    })
 }
 
 /// Extract the object name and literal arguments from a box's text field.
@@ -2393,9 +2539,14 @@ fn extract_object_parts(node: &MaxBox) -> (String, Vec<String>) {
     // behavior where these are integer/float constant objects.
     let (obj_name, numeric_arg) = if is_valid_object_name(&obj_name) {
         (obj_name, None)
-    } else if is_valid_number_token(&obj_name) || is_valid_number_token(obj_name.trim_start_matches('-')) {
+    } else if is_valid_number_token(&obj_name)
+        || is_valid_number_token(obj_name.trim_start_matches('-'))
+    {
         // Bare numeric object name → newobj + number as arg
-        (node.maxclass.clone(), Some(normalize_number_literal(&obj_name)))
+        (
+            node.maxclass.clone(),
+            Some(normalize_number_literal(&obj_name)),
+        )
     } else {
         (node.maxclass.clone(), None)
     };
@@ -2531,7 +2682,10 @@ fn is_valid_object_name(name: &str) -> bool {
             if !seg_first.is_ascii_alphabetic() && seg_first != '_' {
                 return false;
             }
-            if !segment.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+            if !segment
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            {
                 return false;
             }
         } else {
@@ -2545,7 +2699,10 @@ fn is_valid_object_name(name: &str) -> bool {
                 }
             } else if seg_first.is_ascii_alphanumeric() || seg_first == '_' {
                 // Regular identifier or digit-starting segment (e.g., jit.3m, jit.gl, gbr.wind=)
-                if !segment.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '=') {
+                if !segment
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '=')
+                {
                     return false;
                 }
             } else {
@@ -2586,7 +2743,10 @@ fn sanitize_literal_arg(s: &str, _known_names: &HashSet<&str>) -> String {
 
     // Always wrap non-numeric values as string literals.
     // Max text args are symbol values, not wire references.
-    format!("\"{}\"", normalized.replace('\\', "\\\\").replace('"', "\\\""))
+    format!(
+        "\"{}\"",
+        normalized.replace('\\', "\\\\").replace('"', "\\\"")
+    )
 }
 
 /// Sanitize an argument token so it is valid flutmax syntax (context-free version).
@@ -2598,7 +2758,10 @@ fn sanitize_arg(s: &str) -> String {
     if is_valid_arg_token(&normalized) {
         normalized
     } else {
-        format!("\"{}\"", normalized.replace('\\', "\\\\").replace('"', "\\\""))
+        format!(
+            "\"{}\"",
+            normalized.replace('\\', "\\\\").replace('"', "\\\"")
+        )
     }
 }
 
@@ -2660,15 +2823,17 @@ fn normalize_number_literal(s: &str) -> String {
 
     // Trailing-dot float: "127." → "127.0", "-50." → "-50.0"
     if s.ends_with('.') && s.len() > 1 {
-        let has_digits = trimmed.trim_end_matches('.').chars().all(|c| c.is_ascii_digit());
+        let has_digits = trimmed
+            .trim_end_matches('.')
+            .chars()
+            .all(|c| c.is_ascii_digit());
         if has_digits {
             return format!("{}0", s);
         }
     }
 
     // Leading-dot float: ".5" → "0.5", "-.5" → "-0.5"
-    if trimmed.starts_with('.') {
-        let rest = &trimmed[1..];
+    if let Some(rest) = trimmed.strip_prefix('.') {
         if rest.chars().all(|c| c.is_ascii_digit()) {
             if is_neg {
                 return format!("-0.{}", rest);
@@ -2716,9 +2881,13 @@ fn infer_msg_name(text: &str) -> String {
     }
     let first_word = trimmed.split_whitespace().next().unwrap_or("msg");
     // If first word is purely numeric, prefix with msg_
-    if first_word.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-') {
+    if first_word
+        .chars()
+        .all(|c| c.is_ascii_digit() || c == '.' || c == '-')
+    {
         // Use the full content but shortened: "0 100" → "msg_0_100"
-        let short: String = trimmed.split_whitespace()
+        let short: String = trimmed
+            .split_whitespace()
             .take(3)
             .collect::<Vec<_>>()
             .join("_");
@@ -2756,24 +2925,34 @@ fn extract_object_name_for_wire(b: &MaxBox) -> String {
 /// Max objects and patch names may contain Unicode characters like `µ` (micro)
 /// or `ƒ` (function) that are not valid in flutmax identifiers.
 fn sanitize_unicode(name: &str) -> String {
-    name.replace('\u{00B5}', "micro")  // µ (micro sign)
-        .replace('\u{03BC}', "micro")  // μ (Greek small letter mu)
-        .replace('\u{0192}', "f")      // ƒ (Latin small f with hook)
-        .replace('\u{00B0}', "deg")    // ° (degree sign)
-        .replace('\u{2126}', "ohm")    // Ω (ohm sign)
-        .replace('\u{00D7}', "x")      // × (multiplication sign)
-        .replace('\u{00F7}', "div")    // ÷ (division sign)
-        .replace('\u{2192}', "to")     // → (rightwards arrow)
-        .replace('\u{2190}', "from")   // ← (leftwards arrow)
+    name.replace(['\u{00B5}', '\u{03BC}'], "micro") // μ (Greek small letter mu)
+        .replace('\u{0192}', "f") // ƒ (Latin small f with hook)
+        .replace('\u{00B0}', "deg") // ° (degree sign)
+        .replace('\u{2126}', "ohm") // Ω (ohm sign)
+        .replace('\u{00D7}', "x") // × (multiplication sign)
+        .replace('\u{00F7}', "div") // ÷ (division sign)
+        .replace('\u{2192}', "to") // → (rightwards arrow)
+        .replace('\u{2190}', "from") // ← (leftwards arrow)
 }
 
 /// Check if a name is a reserved keyword in flutmax.
 ///
 /// Wire names that collide with these keywords cause parse errors.
 fn is_reserved_keyword(name: &str) -> bool {
-    matches!(name,
-        "wire" | "in" | "out" | "feedback" | "state" | "msg" |
-        "signal" | "float" | "int" | "bang" | "list" | "symbol"
+    matches!(
+        name,
+        "wire"
+            | "in"
+            | "out"
+            | "feedback"
+            | "state"
+            | "msg"
+            | "signal"
+            | "float"
+            | "int"
+            | "bang"
+            | "list"
+            | "symbol"
     )
 }
 
@@ -2839,11 +3018,9 @@ fn sanitize_name_impl(name: &str, lowercase: bool) -> String {
                     prev_separator = true;
                 }
             }
-        } else if ch == ' ' || ch == '#' {
-            if !prev_separator && !result.is_empty() {
-                result.push('_');
-                prev_separator = true;
-            }
+        } else if (ch == ' ' || ch == '#') && !prev_separator && !result.is_empty() {
+            result.push('_');
+            prev_separator = true;
         }
         // Other chars (., ~, etc.) are dropped
     }
@@ -2878,7 +3055,7 @@ fn sanitize_name_impl(name: &str, lowercase: bool) -> String {
     if result
         .chars()
         .next()
-        .map_or(false, |c| c.is_ascii_digit() || c == '-')
+        .is_some_and(|c| c.is_ascii_digit() || c == '-')
     {
         result = format!("_{}", result);
     }
@@ -2911,14 +3088,23 @@ fn format_attr_value(v: &serde_json::Value) -> String {
                 .replace('\t', "\\t");
             format!("\"{}\"", escaped)
         }
-        Value::Bool(b) => if *b { "1".to_string() } else { "0".to_string() },
+        Value::Bool(b) => {
+            if *b {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            }
+        }
         Value::Array(arr) => {
             // Quote arrays as strings to avoid parse errors
-            let inner: Vec<String> = arr.iter().map(|item| match item {
-                Value::Number(n) => n.to_string(),
-                Value::String(s) => s.clone(),
-                other => format!("{}", other),
-            }).collect();
+            let inner: Vec<String> = arr
+                .iter()
+                .map(|item| match item {
+                    Value::Number(n) => n.to_string(),
+                    Value::String(s) => s.clone(),
+                    other => format!("{}", other),
+                })
+                .collect();
             format!("\"{}\"", inner.join(" "))
         }
         Value::Object(_) => {
@@ -2960,7 +3146,13 @@ fn extract_text_attrs(text: &str) -> Vec<(String, String)> {
                     let v = value_parts[0];
                     if v.parse::<f64>().is_ok() {
                         v.to_string()
-                    } else if v.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') && v.chars().next().map_or(false, |c| c.is_alphabetic() || c == '_') {
+                    } else if v
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+                        && v.chars()
+                            .next()
+                            .is_some_and(|c| c.is_alphabetic() || c == '_')
+                    {
                         // Simple identifier — safe without quoting
                         v.to_string()
                     } else {
@@ -2989,7 +3181,7 @@ fn extract_text_attrs(text: &str) -> Vec<(String, String)> {
 /// Check if a MaxBox is a codebox with inline code.
 fn is_codebox_with_code(node: &MaxBox) -> bool {
     matches!(node.maxclass.as_str(), "v8.codebox" | "codebox")
-        && node.code.as_ref().map_or(false, |c| !c.is_empty())
+        && node.code.as_ref().is_some_and(|c| !c.is_empty())
 }
 
 /// Extract codebox code content to an external file reference.
@@ -3041,7 +3233,8 @@ pub fn is_decorative_attr(key: &str) -> bool {
         return true;
     }
 
-    matches!(key,
+    matches!(
+        key,
         // Background / color
         "background" | "bgcolor" | "bgcolor2" | "textcolor" | "textcolor2" | "color"
         | "bgoncolor" | "bgovercolor" | "textoncolor" | "textovercolor"
@@ -3107,7 +3300,8 @@ fn build_box_attrs(b: &MaxBox) -> Vec<(String, String)> {
     // For newobj boxes that also have JSON extra_attrs beyond what's in text,
     // add those too (avoiding duplicates with text-based attrs)
     if b.maxclass == "newobj" {
-        let text_keys: std::collections::HashSet<String> = attrs.iter().map(|(k, _)| k.clone()).collect();
+        let text_keys: std::collections::HashSet<String> =
+            attrs.iter().map(|(k, _)| k.clone()).collect();
         for (k, v) in &b.extra_attrs {
             if !text_keys.contains(k) {
                 attrs.push((k.clone(), format_attr_value(v)));
@@ -3133,7 +3327,10 @@ fn is_safe_attr_key(k: &str) -> bool {
         return false;
     }
     // Must contain only alphanumeric, underscore, hyphen
-    if !k.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+    if !k
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
         return false;
     }
     true
@@ -3146,7 +3343,7 @@ fn is_safe_attr_value(v: &str) -> bool {
     }
     // Quoted string — safe if content is simple
     if v.starts_with('"') && v.ends_with('"') {
-        let inner = &v[1..v.len()-1];
+        let inner = &v[1..v.len() - 1];
         // Reject strings with nested quotes, newlines, or JSON-like content
         if inner.contains('\n') || inner.contains('\r') {
             return false;
@@ -3165,8 +3362,11 @@ fn is_safe_attr_value(v: &str) -> bool {
         return true;
     }
     // Simple identifier — safe (no slashes, colons, or other special chars)
-    if v.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
-        && v.chars().next().map_or(false, |c| c.is_alphabetic() || c == '_')
+    if v.chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+        && v.chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_')
         && !v.contains('/')
         && !v.ends_with('.')
     {
@@ -3350,7 +3550,10 @@ mod tests {
         assert_eq!(sanitize_name("hello world"), "hello_world");
         assert_eq!(sanitize_name("freq-hz"), "freq-hz");
         assert_eq!(sanitize_name("my_var"), "my_var");
-        assert_eq!(sanitize_name("MIDi key # and velocity"), "MIDi_key_and_velocity");
+        assert_eq!(
+            sanitize_name("MIDi key # and velocity"),
+            "MIDi_key_and_velocity"
+        );
         assert_eq!(sanitize_name("myMessage"), "myMessage");
         assert_eq!(sanitize_name("cycle~"), "cycle");
         // Hyphens preserved for varname round-tripping
@@ -3361,7 +3564,10 @@ mod tests {
     #[test]
     fn test_sanitize_name_lower() {
         // Lowercasing sanitizer (for generated wire names)
-        assert_eq!(sanitize_name_lower("MIDi key # and velocity"), "midi_key_and_velocity");
+        assert_eq!(
+            sanitize_name_lower("MIDi key # and velocity"),
+            "midi_key_and_velocity"
+        );
         assert_eq!(sanitize_name_lower("myMessage"), "mymessage");
         assert_eq!(sanitize_name_lower("cycle~"), "cycle");
         assert_eq!(sanitize_name_lower("Hello World"), "hello_world");
@@ -3547,20 +3753,11 @@ mod tests {
             "\"$3\""
         );
         // $0 is not a valid port index (1-based) — emit as string literal
-        assert_eq!(
-            resolve_template_arg("$0", &["freq".into()]),
-            "\"$0\""
-        );
+        assert_eq!(resolve_template_arg("$0", &["freq".into()]), "\"$0\"");
         // Non-template args pass through
-        assert_eq!(
-            resolve_template_arg("440", &["freq".into()]),
-            "440"
-        );
+        assert_eq!(resolve_template_arg("440", &["freq".into()]), "440");
         // #0 becomes a string literal
-        assert_eq!(
-            resolve_template_arg("#0", &["freq".into()]),
-            "\"#0\""
-        );
+        assert_eq!(resolve_template_arg("#0", &["freq".into()]), "\"#0\"");
     }
 
     #[test]
@@ -3659,7 +3856,10 @@ mod tests {
             extra_attrs: vec![],
             code: None,
         };
-        assert_eq!(extract_subpatcher_name(&b, "main", &counter), "main_myfilter");
+        assert_eq!(
+            extract_subpatcher_name(&b, "main", &counter),
+            "main_myfilter"
+        );
     }
 
     #[test]
@@ -3681,7 +3881,10 @@ mod tests {
             extra_attrs: vec![],
             code: None,
         };
-        assert_eq!(extract_subpatcher_name(&b, "synth", &counter), "synth_myvoice");
+        assert_eq!(
+            extract_subpatcher_name(&b, "synth", &counter),
+            "synth_myvoice"
+        );
     }
 
     #[test]
@@ -3748,7 +3951,11 @@ mod tests {
             code: None,
         };
         let name1 = extract_subpatcher_name(&b, "main", &counter);
-        assert!(name1.starts_with("main_sub_"), "Expected main_sub_N, got: {}", name1);
+        assert!(
+            name1.starts_with("main_sub_"),
+            "Expected main_sub_N, got: {}",
+            name1
+        );
 
         let name2 = extract_subpatcher_name(&b, "main", &counter);
         assert_ne!(name1, name2, "Counter should increment");
@@ -3795,7 +4002,12 @@ mod tests {
         let (main_patch, subpatchers) = analyze_recursive(&pat, "test", None).unwrap();
 
         // Should have 1 subpatcher
-        assert_eq!(subpatchers.len(), 1, "Expected 1 subpatcher, got {}", subpatchers.len());
+        assert_eq!(
+            subpatchers.len(),
+            1,
+            "Expected 1 subpatcher, got {}",
+            subpatchers.len()
+        );
         assert!(
             subpatchers[0].0.contains("myfilter"),
             "Subpatcher name should contain 'myfilter': {}",
@@ -3803,7 +4015,11 @@ mod tests {
         );
 
         // Main patch should have the subpatcher as a wire candidate
-        assert_eq!(main_patch.wires.len(), 2, "Expected 2 wires (cycle~ + myfilter)");
+        assert_eq!(
+            main_patch.wires.len(),
+            2,
+            "Expected 2 wires (cycle~ + myfilter)"
+        );
         assert!(
             main_patch.wires[0].expr.contains("cycle~"),
             "First wire should be cycle~: {}",
@@ -3817,10 +4033,22 @@ mod tests {
 
         // Subpatcher should have its own structure
         let sub_patch = &subpatchers[0].1;
-        assert_eq!(sub_patch.in_decls.len(), 1, "Subpatcher should have 1 inlet");
+        assert_eq!(
+            sub_patch.in_decls.len(),
+            1,
+            "Subpatcher should have 1 inlet"
+        );
         assert_eq!(sub_patch.in_decls[0].port_type, "signal");
-        assert_eq!(sub_patch.out_decls.len(), 1, "Subpatcher should have 1 outlet");
-        assert_eq!(sub_patch.wires.len(), 1, "Subpatcher should have 1 wire (biquad~)");
+        assert_eq!(
+            sub_patch.out_decls.len(),
+            1,
+            "Subpatcher should have 1 outlet"
+        );
+        assert_eq!(
+            sub_patch.wires.len(),
+            1,
+            "Subpatcher should have 1 wire (biquad~)"
+        );
         assert!(sub_patch.wires[0].expr.contains("biquad~"));
     }
 
@@ -3880,17 +4108,24 @@ mod tests {
         let (main_patch, subpatchers) = analyze_recursive(&pat, "root", None).unwrap();
 
         // Should have 2 subpatchers: outer and inner
-        assert_eq!(subpatchers.len(), 2, "Expected 2 subpatchers (outer + inner), got {}", subpatchers.len());
+        assert_eq!(
+            subpatchers.len(),
+            2,
+            "Expected 2 subpatchers (outer + inner), got {}",
+            subpatchers.len()
+        );
 
         // Verify names contain the hierarchy
         let names: Vec<&str> = subpatchers.iter().map(|(n, _)| n.as_str()).collect();
         assert!(
             names.iter().any(|n| n.contains("outer")),
-            "Should have 'outer' subpatcher: {:?}", names
+            "Should have 'outer' subpatcher: {:?}",
+            names
         );
         assert!(
             names.iter().any(|n| n.contains("inner")),
-            "Should have 'inner' subpatcher: {:?}", names
+            "Should have 'inner' subpatcher: {:?}",
+            names
         );
 
         // Main patch should reference outer
@@ -3902,10 +4137,14 @@ mod tests {
         );
 
         // Inner subpatcher should have a print wire
-        let inner = subpatchers.iter().find(|(n, _)| n.contains("inner")).unwrap();
+        let inner = subpatchers
+            .iter()
+            .find(|(n, _)| n.contains("inner"))
+            .unwrap();
         assert!(
             inner.1.wires.iter().any(|w| w.expr.contains("print")),
-            "Inner patch should contain print: {:?}", inner.1.wires
+            "Inner patch should contain print: {:?}",
+            inner.1.wires
         );
     }
 
@@ -3970,7 +4209,10 @@ mod tests {
         let pat = parse_maxpat(L1_JSON).unwrap();
         let (main_patch, subpatchers) = analyze_recursive(&pat, "sine", None).unwrap();
 
-        assert!(subpatchers.is_empty(), "Flat patch should have no subpatchers");
+        assert!(
+            subpatchers.is_empty(),
+            "Flat patch should have no subpatchers"
+        );
         assert_eq!(main_patch.wires.len(), 1);
         assert_eq!(main_patch.wires[0].expr, "cycle~(440)");
     }
@@ -4027,7 +4269,10 @@ mod tests {
     fn test_extract_text_attrs_multi_word_value() {
         let attrs = extract_text_attrs("live.dial @parameter_longname My Cutoff @minimum 20.");
         assert_eq!(attrs.len(), 2);
-        assert_eq!(attrs[0], ("parameter_longname".into(), "\"My Cutoff\"".into()));
+        assert_eq!(
+            attrs[0],
+            ("parameter_longname".into(), "\"My Cutoff\"".into())
+        );
         assert_eq!(attrs[1], ("minimum".into(), "20.".to_string()));
     }
 
@@ -4145,9 +4390,16 @@ mod tests {
         let pat = parse_maxpat(json).unwrap();
         let result = analyze(&pat, None).unwrap();
         assert_eq!(result.wires.len(), 1);
-        assert!(!result.wires[0].attrs.is_empty(), "flonum wire should have attrs");
+        assert!(
+            !result.wires[0].attrs.is_empty(),
+            "flonum wire should have attrs"
+        );
 
-        let attr_keys: Vec<&str> = result.wires[0].attrs.iter().map(|(k, _)| k.as_str()).collect();
+        let attr_keys: Vec<&str> = result.wires[0]
+            .attrs
+            .iter()
+            .map(|(k, _)| k.as_str())
+            .collect();
         assert!(attr_keys.contains(&"minimum"), "Should have minimum attr");
         assert!(attr_keys.contains(&"maximum"), "Should have maximum attr");
     }
@@ -4191,7 +4443,10 @@ mod tests {
         let pat = parse_maxpat(json).unwrap();
         let result = analyze(&pat, None).unwrap();
         assert_eq!(result.wires.len(), 1);
-        assert!(!result.wires[0].attrs.is_empty(), "cycle~ wire should have attrs from text");
+        assert!(
+            !result.wires[0].attrs.is_empty(),
+            "cycle~ wire should have attrs from text"
+        );
 
         let phase_attr = result.wires[0].attrs.iter().find(|(k, _)| k == "phase");
         assert!(phase_attr.is_some(), "Should have phase attr");
@@ -4278,7 +4533,12 @@ mod tests {
         let result = analyze(&pat, None).unwrap();
 
         // 4 wires: button, print c, print b, print a
-        assert_eq!(result.wires.len(), 4, "Expected 4 wires, got: {:?}", result.wires.iter().map(|w| &w.name).collect::<Vec<_>>());
+        assert_eq!(
+            result.wires.len(),
+            4,
+            "Expected 4 wires, got: {:?}",
+            result.wires.iter().map(|w| &w.name).collect::<Vec<_>>()
+        );
 
         // The button (source) should be first
         assert!(
@@ -4438,15 +4698,30 @@ mod tests {
         let result = analyze(&pat, None).unwrap();
 
         // Find the mul~ wire
-        let mul_wire = result.wires.iter().find(|w| w.expr.contains("mul~")).unwrap();
+        let mul_wire = result
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("mul~"))
+            .unwrap();
         // Should preserve the literal 0.5 as the only arg
-        assert_eq!(mul_wire.expr, "mul~(0.5)", "Expected mul~(0.5), got: {}", mul_wire.expr);
+        assert_eq!(
+            mul_wire.expr, "mul~(0.5)",
+            "Expected mul~(0.5), got: {}",
+            mul_wire.expr
+        );
 
         // Both connections should be emitted as direct connections
-        let mul_directs: Vec<_> = result.direct_connections.iter()
+        let mul_directs: Vec<_> = result
+            .direct_connections
+            .iter()
             .filter(|dc| dc.target_wire == mul_wire.name)
             .collect();
-        assert_eq!(mul_directs.len(), 2, "Expected 2 direct connections for mul~, got {}", mul_directs.len());
+        assert_eq!(
+            mul_directs.len(),
+            2,
+            "Expected 2 direct connections for mul~, got {}",
+            mul_directs.len()
+        );
 
         // Check inlet 0 and inlet 1 are both present
         let has_inlet0 = mul_directs.iter().any(|dc| dc.inlet == 0);
@@ -4507,15 +4782,29 @@ mod tests {
         let result = analyze(&pat, None).unwrap();
 
         // Find the cycle~ wire
-        let osc_wire = result.wires.iter().find(|w| w.expr.contains("cycle~")).unwrap();
+        let osc_wire = result
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("cycle~"))
+            .unwrap();
         // Should preserve the literal 440
-        assert_eq!(osc_wire.expr, "cycle~(440)", "Expected cycle~(440), got: {}", osc_wire.expr);
+        assert_eq!(
+            osc_wire.expr, "cycle~(440)",
+            "Expected cycle~(440), got: {}",
+            osc_wire.expr
+        );
 
         // Connection should be a direct connection
-        let osc_directs: Vec<_> = result.direct_connections.iter()
+        let osc_directs: Vec<_> = result
+            .direct_connections
+            .iter()
             .filter(|dc| dc.target_wire == osc_wire.name)
             .collect();
-        assert_eq!(osc_directs.len(), 1, "Expected 1 direct connection for cycle~");
+        assert_eq!(
+            osc_directs.len(),
+            1,
+            "Expected 1 direct connection for cycle~"
+        );
         assert_eq!(osc_directs[0].inlet, 0);
     }
 
@@ -4571,15 +4860,29 @@ mod tests {
         let result = analyze(&pat, None).unwrap();
 
         // Find the cycle~ wire
-        let osc_wire = result.wires.iter().find(|w| w.expr.contains("cycle~")).unwrap();
+        let osc_wire = result
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("cycle~"))
+            .unwrap();
         // Should use the connection as inline arg (no default preservation)
-        assert_eq!(osc_wire.expr, "cycle~(freq)", "Expected cycle~(freq), got: {}", osc_wire.expr);
+        assert_eq!(
+            osc_wire.expr, "cycle~(freq)",
+            "Expected cycle~(freq), got: {}",
+            osc_wire.expr
+        );
 
         // No direct connections for cycle~ (connection is inline)
-        let osc_directs: Vec<_> = result.direct_connections.iter()
+        let osc_directs: Vec<_> = result
+            .direct_connections
+            .iter()
             .filter(|dc| dc.target_wire == osc_wire.name)
             .collect();
-        assert_eq!(osc_directs.len(), 0, "Expected 0 direct connections for cycle~ without text args");
+        assert_eq!(
+            osc_directs.len(),
+            0,
+            "Expected 0 direct connections for cycle~ without text args"
+        );
     }
 
     /// Test: `[pack 0 0 0]` with all inlets connected should preserve defaults
@@ -4658,15 +4961,29 @@ mod tests {
         let result = analyze(&pat, None).unwrap();
 
         // Find the pack wire
-        let pack_wire = result.wires.iter().find(|w| w.expr.contains("pack")).unwrap();
+        let pack_wire = result
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("pack"))
+            .unwrap();
         // Should preserve all literal defaults
-        assert_eq!(pack_wire.expr, "pack(0, 0, 0)", "Expected pack(0, 0, 0), got: {}", pack_wire.expr);
+        assert_eq!(
+            pack_wire.expr, "pack(0, 0, 0)",
+            "Expected pack(0, 0, 0), got: {}",
+            pack_wire.expr
+        );
 
         // All 3 connections should be direct connections
-        let pack_directs: Vec<_> = result.direct_connections.iter()
+        let pack_directs: Vec<_> = result
+            .direct_connections
+            .iter()
             .filter(|dc| dc.target_wire == pack_wire.name)
             .collect();
-        assert_eq!(pack_directs.len(), 3, "Expected 3 direct connections for pack");
+        assert_eq!(
+            pack_directs.len(),
+            3,
+            "Expected 3 direct connections for pack"
+        );
     }
 
     /// Test: connection on an inlet BEYOND the literal arg range should not trigger
@@ -4721,7 +5038,11 @@ mod tests {
         let result = analyze(&pat, None).unwrap();
 
         // Find the delay~ wire
-        let del_wire = result.wires.iter().find(|w| w.expr.contains("delay~")).unwrap();
+        let del_wire = result
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("delay~"))
+            .unwrap();
         // literal "100" at position 0, connection at position 1 — no overlap
         // Connection should be inline as arg, not a direct connection
         assert!(
@@ -4926,7 +5247,11 @@ mod tests {
         // Should extract 1 subpatcher
         assert_eq!(subpatchers.len(), 1);
         let (sub_name, sub_patch) = &subpatchers[0];
-        assert!(sub_name.contains("mysynth"), "Expected subpatcher name to contain 'mysynth', got: {}", sub_name);
+        assert!(
+            sub_name.contains("mysynth"),
+            "Expected subpatcher name to contain 'mysynth', got: {}",
+            sub_name
+        );
 
         // The subpatcher should have 2 inlets (inport + in~) and 2 outlets (out~ + outport)
         assert_eq!(sub_patch.in_decls.len(), 2);
@@ -4936,16 +5261,28 @@ mod tests {
         let signal_in = sub_patch.in_decls.iter().find(|d| d.port_type == "signal");
         assert!(signal_in.is_some(), "Should have a signal inlet from in~");
         let float_in = sub_patch.in_decls.iter().find(|d| d.name == "freq");
-        assert!(float_in.is_some(), "Should have a float inlet named 'freq' from inport");
+        assert!(
+            float_in.is_some(),
+            "Should have a float inlet named 'freq' from inport"
+        );
 
         let signal_out = sub_patch.out_decls.iter().find(|d| d.port_type == "signal");
-        assert!(signal_out.is_some(), "Should have a signal outlet from out~");
+        assert!(
+            signal_out.is_some(),
+            "Should have a signal outlet from out~"
+        );
         let float_out = sub_patch.out_decls.iter().find(|d| d.name == "data");
-        assert!(float_out.is_some(), "Should have a float outlet named 'data' from outport");
+        assert!(
+            float_out.is_some(),
+            "Should have a float outlet named 'data' from outport"
+        );
 
         // Main patch should reference the subpatcher
         assert_eq!(main_patch.wires.len(), 1);
-        assert!(main_patch.wires[0].expr.contains("mysynth"), "Main wire should reference subpatcher name");
+        assert!(
+            main_patch.wires[0].expr.contains("mysynth"),
+            "Main wire should reference subpatcher name"
+        );
     }
 
     #[test]
@@ -5057,7 +5394,11 @@ mod tests {
         // code_files should contain the extracted code
         assert_eq!(result.code_files.len(), 1, "Expected 1 code file");
         let (filename, content) = &result.code_files[0];
-        assert!(filename.ends_with(".js"), "Filename should end with .js: {}", filename);
+        assert!(
+            filename.ends_with(".js"),
+            "Filename should end with .js: {}",
+            filename
+        );
         assert!(
             content.contains("function bang()"),
             "Code content should contain the JS code: {}",
@@ -5091,7 +5432,10 @@ mod tests {
         let maxpat = crate::parser::parse_maxpat(json).unwrap();
         let result = analyze(&maxpat, None).unwrap();
 
-        assert!(result.code_files.is_empty(), "No code_files expected when code field is absent");
+        assert!(
+            result.code_files.is_empty(),
+            "No code_files expected when code field is absent"
+        );
     }
 
     #[test]
@@ -5375,7 +5719,10 @@ mod tests {
         assert_eq!(rect[2], 640.0);
 
         // Wire entry should have correct position
-        let wire_entry = patch.ui_entries.iter().find(|e| e.name == patch.wires[0].name);
+        let wire_entry = patch
+            .ui_entries
+            .iter()
+            .find(|e| e.name == patch.wires[0].name);
         assert!(wire_entry.is_some(), "Should have UI entry for the wire");
         let wire_entry = wire_entry.unwrap();
         assert_eq!(wire_entry.rect[0], 150.0);
@@ -5432,7 +5779,8 @@ mod tests {
         let wire = &patch.wires[0];
         assert!(
             wire.attrs.iter().all(|(k, _)| !is_decorative_attr(k)),
-            "Wire attrs should not contain decorative: {:?}", wire.attrs
+            "Wire attrs should not contain decorative: {:?}",
+            wire.attrs
         );
         assert!(
             wire.attrs.iter().any(|(k, _)| k == "minimum"),
@@ -5444,14 +5792,20 @@ mod tests {
         assert!(ui_entry.is_some());
         let ui_entry = ui_entry.unwrap();
         assert!(
-            ui_entry.decorative_attrs.iter().any(|(k, _)| k == "bgcolor"),
-            "UI entry should have bgcolor: {:?}", ui_entry.decorative_attrs
+            ui_entry
+                .decorative_attrs
+                .iter()
+                .any(|(k, _)| k == "bgcolor"),
+            "UI entry should have bgcolor: {:?}",
+            ui_entry.decorative_attrs
         );
     }
 
     #[test]
     fn named_args_from_objdb() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5460,12 +5814,25 @@ mod tests {
             category: String::new(),
             digest: String::new(),
             inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::SignalFloat, is_hot: true, description: "Frequency".to_string() },
-                PortDef { id: 1, port_type: ObjPortType::SignalFloat, is_hot: false, description: "Phase offset".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: true,
+                    description: "Frequency".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: false,
+                    description: "Phase offset".to_string(),
+                },
             ]),
-            outlets: OutletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: false, description: "Output".to_string() },
-            ]),
+            outlets: OutletSpec::Fixed(vec![PortDef {
+                id: 0,
+                port_type: ObjPortType::Signal,
+                is_hot: false,
+                description: "Output".to_string(),
+            }]),
             args: vec![],
         });
 
@@ -5496,7 +5863,9 @@ mod tests {
 
     #[test]
     fn named_args_with_connections() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5505,13 +5874,31 @@ mod tests {
             category: String::new(),
             digest: String::new(),
             inlets: InletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: true, description: "Input".to_string() },
-                PortDef { id: 1, port_type: ObjPortType::SignalFloat, is_hot: false, description: "Frequency".to_string() },
-                PortDef { id: 2, port_type: ObjPortType::SignalFloat, is_hot: false, description: "Q".to_string() },
+                PortDef {
+                    id: 0,
+                    port_type: ObjPortType::Signal,
+                    is_hot: true,
+                    description: "Input".to_string(),
+                },
+                PortDef {
+                    id: 1,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: false,
+                    description: "Frequency".to_string(),
+                },
+                PortDef {
+                    id: 2,
+                    port_type: ObjPortType::SignalFloat,
+                    is_hot: false,
+                    description: "Q".to_string(),
+                },
             ]),
-            outlets: OutletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::Signal, is_hot: false, description: "Output".to_string() },
-            ]),
+            outlets: OutletSpec::Fixed(vec![PortDef {
+                id: 0,
+                port_type: ObjPortType::Signal,
+                is_hot: false,
+                description: "Output".to_string(),
+            }]),
             args: vec![],
         });
 
@@ -5538,11 +5925,13 @@ mod tests {
         // biquad~ with input connected to port_0, frequency to port_1
         assert!(
             patch.wires[0].expr.contains("input:"),
-            "Expected named arg 'input:' in expr: {}", patch.wires[0].expr
+            "Expected named arg 'input:' in expr: {}",
+            patch.wires[0].expr
         );
         assert!(
             patch.wires[0].expr.contains("frequency:"),
-            "Expected named arg 'frequency:' in expr: {}", patch.wires[0].expr
+            "Expected named arg 'frequency:' in expr: {}",
+            patch.wires[0].expr
         );
     }
 
@@ -5571,7 +5960,9 @@ mod tests {
 
     #[test]
     fn named_args_skipped_for_variable_inlets() {
-        use flutmax_objdb::{ObjectDb, ObjectDef, Module, InletSpec, OutletSpec, PortDef, PortType as ObjPortType};
+        use flutmax_objdb::{
+            InletSpec, Module, ObjectDb, ObjectDef, OutletSpec, PortDef, PortType as ObjPortType,
+        };
 
         let mut db = ObjectDb::new();
         db.insert(ObjectDef {
@@ -5581,14 +5972,27 @@ mod tests {
             digest: String::new(),
             inlets: InletSpec::Variable {
                 defaults: vec![
-                    PortDef { id: 0, port_type: ObjPortType::Int, is_hot: true, description: "Value 1".to_string() },
-                    PortDef { id: 1, port_type: ObjPortType::Int, is_hot: false, description: "Value 2".to_string() },
+                    PortDef {
+                        id: 0,
+                        port_type: ObjPortType::Int,
+                        is_hot: true,
+                        description: "Value 1".to_string(),
+                    },
+                    PortDef {
+                        id: 1,
+                        port_type: ObjPortType::Int,
+                        is_hot: false,
+                        description: "Value 2".to_string(),
+                    },
                 ],
                 min_inlets: 2,
             },
-            outlets: OutletSpec::Fixed(vec![
-                PortDef { id: 0, port_type: ObjPortType::List, is_hot: false, description: "Output".to_string() },
-            ]),
+            outlets: OutletSpec::Fixed(vec![PortDef {
+                id: 0,
+                port_type: ObjPortType::List,
+                is_hot: false,
+                description: "Output".to_string(),
+            }]),
             args: vec![],
         });
 
@@ -5607,25 +6011,50 @@ mod tests {
         let maxpat = parse_maxpat(json).unwrap();
         let patch = analyze(&maxpat, Some(&db)).unwrap();
         // Variable inlets — no named args
-        assert!(!patch.wires[0].expr.contains(":"), "pack should use positional args: {}", patch.wires[0].expr);
+        assert!(
+            !patch.wires[0].expr.contains(":"),
+            "pack should use positional args: {}",
+            patch.wires[0].expr
+        );
     }
 
     #[test]
     fn normalize_inlet_name_cases() {
-        assert_eq!(normalize_inlet_name("Frequency"), Some("frequency".to_string()));
-        assert_eq!(normalize_inlet_name("Phase offset"), Some("phase_offset".to_string()));
+        assert_eq!(
+            normalize_inlet_name("Frequency"),
+            Some("frequency".to_string())
+        );
+        assert_eq!(
+            normalize_inlet_name("Phase offset"),
+            Some("phase_offset".to_string())
+        );
         // Type prefix stripped, then too long → None
-        assert_eq!(normalize_inlet_name("Input Gain (Filter coefficient a0)"), None);
+        assert_eq!(
+            normalize_inlet_name("Input Gain (Filter coefficient a0)"),
+            None
+        );
         assert_eq!(normalize_inlet_name(""), None);
         assert_eq!(normalize_inlet_name("  "), None);
         assert_eq!(normalize_inlet_name("123"), None); // leading digits only
         assert_eq!(normalize_inlet_name("Q"), Some("q".to_string()));
         // Type prefix stripping
-        assert_eq!(normalize_inlet_name("(signal) Input"), Some("input".to_string()));
-        assert_eq!(normalize_inlet_name("(signal/float) Cutoff Frequency"), Some("cutoff_frequency".to_string()));
-        assert_eq!(normalize_inlet_name("(Signal/Float) This * Right Inlet"), Some("this_right_inlet".to_string()));
+        assert_eq!(
+            normalize_inlet_name("(signal) Input"),
+            Some("input".to_string())
+        );
+        assert_eq!(
+            normalize_inlet_name("(signal/float) Cutoff Frequency"),
+            Some("cutoff_frequency".to_string())
+        );
+        assert_eq!(
+            normalize_inlet_name("(Signal/Float) This * Right Inlet"),
+            Some("this_right_inlet".to_string())
+        );
         // Phase with range
-        assert_eq!(normalize_inlet_name("Phase (0-1)"), Some("phase_01".to_string()));
+        assert_eq!(
+            normalize_inlet_name("Phase (0-1)"),
+            Some("phase_01".to_string())
+        );
     }
 
     #[test]
@@ -5675,14 +6104,20 @@ mod tests {
         assert_eq!(sub.in_decls[1].name, "amplitude");
 
         // Verify parent patch uses named args for the subpatcher call
-        let sub_wire = main_patch.wires.iter().find(|w| w.expr.contains("mysynth")).unwrap();
+        let sub_wire = main_patch
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("mysynth"))
+            .unwrap();
         assert!(
             sub_wire.expr.contains("frequency:"),
-            "Expected named arg 'frequency:' in expr: {}", sub_wire.expr
+            "Expected named arg 'frequency:' in expr: {}",
+            sub_wire.expr
         );
         assert!(
             sub_wire.expr.contains("amplitude:"),
-            "Expected named arg 'amplitude:' in expr: {}", sub_wire.expr
+            "Expected named arg 'amplitude:' in expr: {}",
+            sub_wire.expr
         );
     }
 
@@ -5721,10 +6156,15 @@ mod tests {
         let (main_patch, _) = analyze_recursive(&maxpat, "test", None).unwrap();
 
         // port_0 should NOT be used as a named arg
-        let sub_wire = main_patch.wires.iter().find(|w| w.expr.contains("mysub")).unwrap();
+        let sub_wire = main_patch
+            .wires
+            .iter()
+            .find(|w| w.expr.contains("mysub"))
+            .unwrap();
         assert!(
             !sub_wire.expr.contains(":"),
-            "port_N names should be skipped: {}", sub_wire.expr
+            "port_N names should be skipped: {}",
+            sub_wire.expr
         );
     }
 

@@ -112,7 +112,10 @@ impl FlutmaxParser {
             self.advance();
             Ok(tok)
         } else {
-            Err(self.error(format!("Expected {:?}, got {:?} '{}'", tt, tok.token_type, tok.lexeme)))
+            Err(self.error(format!(
+                "Expected {:?}, got {:?} '{}'",
+                tt, tok.token_type, tok.lexeme
+            )))
         }
     }
 
@@ -158,7 +161,7 @@ impl FlutmaxParser {
 
     // ── Top-level ────────────────────────────────────────────
 
-/// Parse with error recovery: skip to next statement boundary on error and continue.
+    /// Parse with error recovery: skip to next statement boundary on error and continue.
     fn parse_program_recovering(&mut self) -> (Program, Vec<ParseError>) {
         let mut program = Program::new();
         let mut errors = Vec::new();
@@ -198,7 +201,10 @@ impl FlutmaxParser {
             TokenType::Identifier => self.parse_direct_connection(program),
             _ => {
                 let tok = self.peek().clone();
-                Err(self.error(format!("Unexpected token {:?} '{}'", tok.token_type, tok.lexeme)))
+                Err(self.error(format!(
+                    "Unexpected token {:?} '{}'",
+                    tok.token_type, tok.lexeme
+                )))
             }
         }
     }
@@ -517,16 +523,21 @@ impl FlutmaxParser {
             TokenType::LParen => self.parse_tuple_expression(),
             TokenType::NumberLit => self.parse_number_literal(),
             TokenType::StringLit => self.parse_string_literal(),
-            TokenType::Identifier | TokenType::Operator => {
-                self.parse_name_based_expression()
-            }
+            TokenType::Identifier | TokenType::Operator => self.parse_name_based_expression(),
             // Keywords used as identifiers in expression context:
             // e.g., thispatcher(int), poly~(in), pack(float, float)
-            TokenType::In | TokenType::Out | TokenType::Int | TokenType::Float
-            | TokenType::Bang | TokenType::List | TokenType::Symbol | TokenType::Signal
-            | TokenType::State | TokenType::Msg | TokenType::Feedback | TokenType::Wire => {
-                self.parse_name_based_expression()
-            }
+            TokenType::In
+            | TokenType::Out
+            | TokenType::Int
+            | TokenType::Float
+            | TokenType::Bang
+            | TokenType::List
+            | TokenType::Symbol
+            | TokenType::Signal
+            | TokenType::State
+            | TokenType::Msg
+            | TokenType::Feedback
+            | TokenType::Wire => self.parse_name_based_expression(),
             _ => {
                 let tok = self.peek().clone();
                 Err(self.error(format!(
@@ -593,9 +604,18 @@ impl FlutmaxParser {
                 name.push_str(&self.advance().lexeme.clone());
             }
             // Keywords used as object/reference names in expression context
-            TokenType::In | TokenType::Out | TokenType::Int | TokenType::Float
-            | TokenType::Bang | TokenType::List | TokenType::Symbol | TokenType::Signal
-            | TokenType::State | TokenType::Msg | TokenType::Feedback | TokenType::Wire => {
+            TokenType::In
+            | TokenType::Out
+            | TokenType::Int
+            | TokenType::Float
+            | TokenType::Bang
+            | TokenType::List
+            | TokenType::Symbol
+            | TokenType::Signal
+            | TokenType::State
+            | TokenType::Msg
+            | TokenType::Feedback
+            | TokenType::Wire => {
                 name.push_str(&self.advance().lexeme.clone());
             }
             _ => {
@@ -649,9 +669,12 @@ impl FlutmaxParser {
                     // e.g. `3` followed by `m` → `3m`
                     if self.check(TokenType::Identifier) {
                         // Check if they are adjacent (no whitespace between)
-                        let prev_end = self.tokens[self.pos - 1].column + self.tokens[self.pos - 1].lexeme.len();
+                        let prev_end = self.tokens[self.pos - 1].column
+                            + self.tokens[self.pos - 1].lexeme.len();
                         let next_start = self.peek().column;
-                        if prev_end == next_start && self.tokens[self.pos - 1].line == self.peek().line {
+                        if prev_end == next_start
+                            && self.tokens[self.pos - 1].line == self.peek().line
+                        {
                             name.push_str(&self.advance().lexeme.clone());
                         }
                     }
@@ -664,9 +687,16 @@ impl FlutmaxParser {
                 }
                 // Keywords as dotted segments: `jit.bang`, `live.float`, etc.
                 // Note: In/Out are handled above (with `.in[`/`.out[` lookahead)
-                TokenType::Bang | TokenType::Float | TokenType::Int | TokenType::List
-                | TokenType::Symbol | TokenType::Signal
-                | TokenType::State | TokenType::Msg | TokenType::Feedback | TokenType::Wire => {
+                TokenType::Bang
+                | TokenType::Float
+                | TokenType::Int
+                | TokenType::List
+                | TokenType::Symbol
+                | TokenType::Signal
+                | TokenType::State
+                | TokenType::Msg
+                | TokenType::Feedback
+                | TokenType::Wire => {
                     self.advance(); // consume `.`
                     name.push('.');
                     name.push_str(&self.advance().lexeme.clone());
@@ -680,11 +710,12 @@ impl FlutmaxParser {
         if self.check(TokenType::Eq) && name.contains('.') {
             let prev_end = self.previous().column + self.previous().lexeme.len();
             let eq_col = self.peek().column;
-            if prev_end == eq_col && self.previous().line == self.peek().line {
-                if self.peek_at(1).token_type == TokenType::LParen {
-                    self.advance(); // consume `=`
-                    name.push('=');
-                }
+            if prev_end == eq_col
+                && self.previous().line == self.peek().line
+                && self.peek_at(1).token_type == TokenType::LParen
+            {
+                self.advance(); // consume `=`
+                name.push('=');
             }
         }
 
@@ -1169,7 +1200,9 @@ out 1 (highpass): signal;
             prog.wires[0].value,
             Expr::Call {
                 object: "print".to_string(),
-                args: vec![CallArg::positional(Expr::Lit(LitValue::Str("hello world".to_string())))],
+                args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                    "hello world".to_string()
+                )))],
             }
         );
     }
@@ -1255,10 +1288,7 @@ out 0 (audio): signal;
         let prog = parse("wire pair = (x, y);");
         assert_eq!(
             prog.wires[0].value,
-            Expr::Tuple(vec![
-                Expr::Ref("x".to_string()),
-                Expr::Ref("y".to_string()),
-            ])
+            Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string()),])
         );
     }
 
@@ -1307,10 +1337,7 @@ out 0 (audio): signal;
         assert_eq!(dw.names, vec!["a", "b"]);
         assert_eq!(
             dw.value,
-            Expr::Tuple(vec![
-                Expr::Ref("x".to_string()),
-                Expr::Ref("y".to_string()),
-            ])
+            Expr::Tuple(vec![Expr::Ref("x".to_string()), Expr::Ref("y".to_string()),])
         );
     }
 
@@ -1838,7 +1865,9 @@ out[0] = w_6;
             prog.wires[0].value,
             Expr::Call {
                 object: "mul~".to_string(),
-                args: vec![CallArg::positional(Expr::Lit(LitValue::Str("#1".to_string())))],
+                args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                    "#1".to_string()
+                )))],
             }
         );
     }
@@ -1884,10 +1913,12 @@ out[0] = w_4;
             prog.wires[2].value,
             Expr::Call {
                 object: "mtof".to_string(),
-                args: vec![CallArg::positional(Expr::OutputPortAccess(OutputPortAccess {
-                    object: "w_1".to_string(),
-                    index: 0,
-                }))],
+                args: vec![CallArg::positional(Expr::OutputPortAccess(
+                    OutputPortAccess {
+                        object: "w_1".to_string(),
+                        index: 0,
+                    }
+                ))],
             }
         );
 
@@ -1928,7 +1959,9 @@ out[0] = w_4;
             prog.wires[0].value,
             Expr::Call {
                 object: "expr".to_string(),
-                args: vec![CallArg::positional(Expr::Lit(LitValue::Str("pow($f1/127.\\,4.)".to_string())))],
+                args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                    "pow($f1/127.\\,4.)".to_string()
+                )))],
             }
         );
     }
@@ -2190,7 +2223,10 @@ out right_out: signal = right;
         assert_eq!(prog.out_decls[0].value, Some(Expr::Ref("left".to_string())));
         assert_eq!(prog.out_decls[1].index, 1);
         assert_eq!(prog.out_decls[1].name, "right_out");
-        assert_eq!(prog.out_decls[1].value, Some(Expr::Ref("right".to_string())));
+        assert_eq!(
+            prog.out_decls[1].value,
+            Some(Expr::Ref("right".to_string()))
+        );
         assert!(prog.out_assignments.is_empty());
     }
 
@@ -2248,10 +2284,7 @@ out right_out: signal = right;
         if let Expr::Call { args, .. } = &prog.wires[0].value {
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].name, Some("msg".to_string()));
-            assert_eq!(
-                args[0].value,
-                Expr::Lit(LitValue::Str("hello".to_string()))
-            );
+            assert_eq!(args[0].value, Expr::Lit(LitValue::Str("hello".to_string())));
         } else {
             panic!("expected Call");
         }

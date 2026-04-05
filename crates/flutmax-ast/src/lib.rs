@@ -2,7 +2,7 @@
 ///
 /// Type definitions representing the structure of `.flutmax` source code.
 /// Converted from Tree-sitter CST to this AST, then passed to semantic analysis.
-
+///
 /// Top-level program structure
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -17,6 +17,12 @@ pub struct Program {
     pub feedback_assignments: Vec<FeedbackAssignment>,
     pub state_decls: Vec<StateDecl>,
     pub state_assignments: Vec<StateAssignment>,
+}
+
+impl Default for Program {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Program {
@@ -58,7 +64,7 @@ pub enum PortType {
 }
 
 impl PortType {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "signal" => Some(Self::Signal),
             "float" => Some(Self::Float),
@@ -130,7 +136,6 @@ pub struct OutputPortAccess {
     pub object: String,
     pub index: u32,
 }
-
 
 /// Destructuring wire: `wire (a, b, c) = expr;`
 #[derive(Debug, Clone, PartialEq)]
@@ -211,10 +216,7 @@ impl CallArg {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     /// Object call: `cycle~(440)`, `*~(osc, 0.5)`, `biquad~(input: osc, freq: cutoff)`
-    Call {
-        object: String,
-        args: Vec<CallArg>,
-    },
+    Call { object: String, args: Vec<CallArg> },
     /// Variable reference: `osc`, `freq`
     Ref(String),
     /// Literal value
@@ -255,11 +257,11 @@ mod tests {
 
     #[test]
     fn test_port_type_from_str() {
-        assert_eq!(PortType::from_str("signal"), Some(PortType::Signal));
-        assert_eq!(PortType::from_str("float"), Some(PortType::Float));
-        assert_eq!(PortType::from_str("int"), Some(PortType::Int));
-        assert_eq!(PortType::from_str("bang"), Some(PortType::Bang));
-        assert_eq!(PortType::from_str("unknown"), None);
+        assert_eq!(PortType::parse("signal"), Some(PortType::Signal));
+        assert_eq!(PortType::parse("float"), Some(PortType::Float));
+        assert_eq!(PortType::parse("int"), Some(PortType::Int));
+        assert_eq!(PortType::parse("bang"), Some(PortType::Bang));
+        assert_eq!(PortType::parse("unknown"), None);
     }
 
     #[test]

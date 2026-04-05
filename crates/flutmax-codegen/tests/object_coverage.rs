@@ -81,25 +81,17 @@ fn test_object_compiles_multi(
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
-    let graph = build_graph(&program).unwrap_or_else(|e| {
-        panic!(
-            "build_graph failed for object '{}': {}",
-            object_name, e
-        )
-    });
+    let graph = build_graph(&program)
+        .unwrap_or_else(|e| panic!("build_graph failed for object '{}': {}", object_name, e));
 
-    let json_str = generate(&graph).unwrap_or_else(|e| {
-        panic!(
-            "generate failed for object '{}': {}",
-            object_name, e
-        )
-    });
+    let json_str = generate(&graph)
+        .unwrap_or_else(|e| panic!("generate failed for object '{}': {}", object_name, e));
 
     // Verify the output is valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap_or_else(|e| {
@@ -168,7 +160,10 @@ fn test_object_alias(alias_name: &str, expected_max_name: &str, is_signal: bool)
             name: "result".to_string(),
             value: Expr::Call {
                 object: alias_name.to_string(),
-                args: vec![CallArg::positional(Expr::Ref("a".to_string())), CallArg::positional(Expr::Ref("b".to_string()))],
+                args: vec![
+                    CallArg::positional(Expr::Ref("a".to_string())),
+                    CallArg::positional(Expr::Ref("b".to_string())),
+                ],
             },
             span: None,
             attrs: vec![],
@@ -181,25 +176,17 @@ fn test_object_alias(alias_name: &str, expected_max_name: &str, is_signal: bool)
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
-    let graph = build_graph(&program).unwrap_or_else(|e| {
-        panic!(
-            "build_graph failed for alias '{}': {}",
-            alias_name, e
-        )
-    });
+    let graph = build_graph(&program)
+        .unwrap_or_else(|e| panic!("build_graph failed for alias '{}': {}", alias_name, e));
 
-    let json_str = generate(&graph).unwrap_or_else(|e| {
-        panic!(
-            "generate failed for alias '{}': {}",
-            alias_name, e
-        )
-    });
+    let json_str = generate(&graph)
+        .unwrap_or_else(|e| panic!("generate failed for alias '{}': {}", alias_name, e));
 
     let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
     let boxes = parsed["patcher"]["boxes"].as_array().unwrap();
@@ -260,10 +247,10 @@ fn test_zero_arg_object(object_name: &str, is_signal: bool) {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap_or_else(|e| {
@@ -317,10 +304,10 @@ fn test_object_with_literal(object_name: &str, lit_val: LitValue, is_signal: boo
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -503,7 +490,7 @@ fn test_signal_chain_two_objects() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires: vec![
             Wire {
@@ -536,10 +523,10 @@ fn test_signal_chain_two_objects() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -602,10 +589,10 @@ fn test_multiple_outlets() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -630,7 +617,7 @@ fn test_nested_call() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires: vec![Wire {
             name: "filtered".to_string(),
@@ -656,10 +643,10 @@ fn test_nested_call() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -700,7 +687,7 @@ fn test_integer_literal_in_args() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires: vec![Wire {
             name: "osc".to_string(),
@@ -719,10 +706,10 @@ fn test_integer_literal_in_args() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -756,7 +743,7 @@ fn test_float_literal_in_args() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires: vec![
             Wire {
@@ -789,10 +776,10 @@ fn test_float_literal_in_args() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -825,13 +812,15 @@ fn test_string_literal_in_args() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Float,
-                value: None,
+            value: None,
         }],
         wires: vec![Wire {
             name: "p".to_string(),
             value: Expr::Call {
                 object: "print".to_string(),
-                args: vec![CallArg::positional(Expr::Lit(LitValue::Str("debug".to_string())))],
+                args: vec![CallArg::positional(Expr::Lit(LitValue::Str(
+                    "debug".to_string(),
+                )))],
             },
             span: None,
             attrs: vec![],
@@ -844,10 +833,10 @@ fn test_string_literal_in_args() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -883,17 +872,17 @@ fn test_empty_program_with_only_outlet() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Float,
-                value: None,
+            value: None,
         }],
         wires: Vec::new(),
         out_assignments: Vec::new(),
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -916,10 +905,10 @@ fn test_program_with_only_inlet() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -946,17 +935,17 @@ fn test_many_inlets() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Float,
-                value: None,
+            value: None,
         }],
         wires: Vec::new(),
         out_assignments: Vec::new(),
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -1003,7 +992,7 @@ fn test_many_wires_chain() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires,
         out_assignments: vec![OutAssignment {
@@ -1014,10 +1003,10 @@ fn test_many_wires_chain() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -1043,7 +1032,7 @@ fn test_cycle_tilde_has_correct_numinlets() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires: vec![Wire {
             name: "osc".to_string(),
@@ -1062,10 +1051,10 @@ fn test_cycle_tilde_has_correct_numinlets() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();
@@ -1102,7 +1091,7 @@ fn test_biquad_tilde_has_correct_numinlets() {
             index: 0,
             name: "output".to_string(),
             port_type: PortType::Signal,
-                value: None,
+            value: None,
         }],
         wires: vec![Wire {
             name: "filtered".to_string(),
@@ -1128,10 +1117,10 @@ fn test_biquad_tilde_has_correct_numinlets() {
         destructuring_wires: Vec::new(),
         msg_decls: Vec::new(),
         direct_connections: Vec::new(),
-            feedback_decls: Vec::new(),
-            feedback_assignments: Vec::new(),
-            state_decls: Vec::new(),
-            state_assignments: Vec::new(),
+        feedback_decls: Vec::new(),
+        feedback_assignments: Vec::new(),
+        state_decls: Vec::new(),
+        state_assignments: Vec::new(),
     };
 
     let graph = build_graph(&program).unwrap();

@@ -187,7 +187,7 @@ pub fn parse_maxref(xml_content: &str) -> Result<ObjectDef, ParseError> {
     let obj: XmlC74Object = from_str(xml_content)?;
 
     let name = obj.name.ok_or(ParseError::MissingName)?;
-    let module = Module::from_str(obj.module.as_deref().unwrap_or("max"));
+    let module = Module::parse(obj.module.as_deref().unwrap_or("max"));
     let category = obj.category.unwrap_or_default();
     let digest = obj
         .digest
@@ -196,18 +196,9 @@ pub fn parse_maxref(xml_content: &str) -> Result<ObjectDef, ParseError> {
         .trim()
         .to_string();
 
-    let xml_inlets = obj
-        .inletlist
-        .map(|il| il.inlets)
-        .unwrap_or_default();
-    let xml_outlets = obj
-        .outletlist
-        .map(|ol| ol.outlets)
-        .unwrap_or_default();
-    let xml_args = obj
-        .objarglist
-        .map(|al| al.args)
-        .unwrap_or_default();
+    let xml_inlets = obj.inletlist.map(|il| il.inlets).unwrap_or_default();
+    let xml_outlets = obj.outletlist.map(|ol| ol.outlets).unwrap_or_default();
+    let xml_args = obj.objarglist.map(|al| al.args).unwrap_or_default();
 
     let inlet_defs: Vec<PortDef> = xml_inlets
         .iter()
@@ -274,10 +265,7 @@ pub fn load_directory(dir: &Path) -> Result<(ObjectDb, usize), ParseError> {
             continue;
         }
 
-        let file_name = path
-            .file_name()
-            .and_then(|f| f.to_str())
-            .unwrap_or("");
+        let file_name = path.file_name().and_then(|f| f.to_str()).unwrap_or("");
 
         if !file_name.ends_with(".maxref.xml") {
             continue;
@@ -324,18 +312,15 @@ fn load_recursive_inner(
         return Ok(());
     }
 
-    let entries = std::fs::read_dir(dir).map_err(|e| ParseError::Io(e))?;
+    let entries = std::fs::read_dir(dir).map_err(ParseError::Io)?;
     for entry in entries {
-        let entry = entry.map_err(|e| ParseError::Io(e))?;
+        let entry = entry.map_err(ParseError::Io)?;
         let path = entry.path();
 
         if path.is_dir() {
             load_recursive_inner(&path, db, error_count)?;
         } else if path.extension().and_then(|e| e.to_str()) == Some("xml") {
-            let file_name = path
-                .file_name()
-                .and_then(|f| f.to_str())
-                .unwrap_or("");
+            let file_name = path.file_name().and_then(|f| f.to_str()).unwrap_or("");
             if !file_name.ends_with(".maxref.xml") {
                 continue;
             }
@@ -649,7 +634,11 @@ mod tests {
         assert!(def.has_variable_inlets());
         assert_eq!(def.default_inlet_count(), 2);
 
-        if let InletSpec::Variable { ref defaults, min_inlets } = def.inlets {
+        if let InletSpec::Variable {
+            ref defaults,
+            min_inlets,
+        } = def.inlets
+        {
             assert_eq!(min_inlets, 1);
             assert_eq!(defaults.len(), 2);
             assert_eq!(defaults[0].port_type, PortType::Dynamic);
@@ -770,9 +759,7 @@ mod tests {
 
     #[test]
     fn test_load_msp_ref_directory() {
-        let dir = Path::new(
-            "/Applications/Max.app/Contents/Resources/C74/docs/refpages/msp-ref",
-        );
+        let dir = Path::new("/Applications/Max.app/Contents/Resources/C74/docs/refpages/msp-ref");
         if !dir.exists() {
             eprintln!("Skipping test: Max.app not found");
             return;
@@ -792,9 +779,7 @@ mod tests {
 
     #[test]
     fn test_load_max_ref_directory() {
-        let dir = Path::new(
-            "/Applications/Max.app/Contents/Resources/C74/docs/refpages/max-ref",
-        );
+        let dir = Path::new("/Applications/Max.app/Contents/Resources/C74/docs/refpages/max-ref");
         if !dir.exists() {
             eprintln!("Skipping test: Max.app not found");
             return;
@@ -814,9 +799,7 @@ mod tests {
     #[test]
     fn test_load_directory_recursive_on_flat_dir() {
         // load_directory_recursive should also work on a flat directory (same as load_directory)
-        let dir = Path::new(
-            "/Applications/Max.app/Contents/Resources/C74/docs/refpages/msp-ref",
-        );
+        let dir = Path::new("/Applications/Max.app/Contents/Resources/C74/docs/refpages/msp-ref");
         if !dir.exists() {
             eprintln!("Skipping test: Max.app not found");
             return;
@@ -839,8 +822,7 @@ mod tests {
     #[test]
     fn test_load_directory_recursive_finds_subdirectories() {
         // Package directories have subdirectories with refpages
-        let packages_dir =
-            Path::new("/Applications/Max.app/Contents/Resources/C74/packages");
+        let packages_dir = Path::new("/Applications/Max.app/Contents/Resources/C74/packages");
         if !packages_dir.exists() {
             eprintln!("Skipping test: Max.app packages not found");
             return;

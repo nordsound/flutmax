@@ -37,7 +37,11 @@ impl PortType {
     /// Convert XML type attribute string to PortType.
     /// Normalizes case differences and notation variants (/, " or ", ", ").
     pub fn from_xml_type(type_str: &str) -> Self {
-        let normalized = type_str.to_lowercase().replace(" / ", "/").replace(", ", "/").replace(" or ", "/");
+        let normalized = type_str
+            .to_lowercase()
+            .replace(" / ", "/")
+            .replace(", ", "/")
+            .replace(" or ", "/");
         let normalized = normalized.trim();
 
         match normalized {
@@ -51,9 +55,9 @@ impl PortType {
             "bang" => PortType::Bang,
             "list" => PortType::List,
             "symbol" => PortType::Symbol,
-            "anything" | "message" | "bang/int" | "bang/anything" | "int/float" | "int/float/list"
-            | "int/list" | "float/list" | "int/float/sig" | "signal/msg" | "signal/message"
-            | "signal/list" | "dictionary" | "dict" | "setvalue"
+            "anything" | "message" | "bang/int" | "bang/anything" | "int/float"
+            | "int/float/list" | "int/list" | "float/list" | "int/float/sig" | "signal/msg"
+            | "signal/message" | "signal/list" | "dictionary" | "dict" | "setvalue"
             | "midievent" | "matrix" => PortType::Any,
             "multi-channel signal" | "signal/multi-channel signal" => PortType::MultiChannelSignal,
             "multi-channel signal/float" | "multi-channel signal/message" => {
@@ -105,7 +109,7 @@ pub enum Module {
 }
 
 impl Module {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "max" => Module::Max,
             "msp" => Module::Msp,
@@ -276,12 +280,30 @@ mod tests {
 
     #[test]
     fn test_port_type_from_xml_signal_float_variants() {
-        assert_eq!(PortType::from_xml_type("signal/float"), PortType::SignalFloat);
-        assert_eq!(PortType::from_xml_type("Signal/Float"), PortType::SignalFloat);
-        assert_eq!(PortType::from_xml_type("signal, float"), PortType::SignalFloat);
-        assert_eq!(PortType::from_xml_type("signal or float"), PortType::SignalFloat);
-        assert_eq!(PortType::from_xml_type("float/signal"), PortType::SignalFloat);
-        assert_eq!(PortType::from_xml_type("float / signal"), PortType::SignalFloat);
+        assert_eq!(
+            PortType::from_xml_type("signal/float"),
+            PortType::SignalFloat
+        );
+        assert_eq!(
+            PortType::from_xml_type("Signal/Float"),
+            PortType::SignalFloat
+        );
+        assert_eq!(
+            PortType::from_xml_type("signal, float"),
+            PortType::SignalFloat
+        );
+        assert_eq!(
+            PortType::from_xml_type("signal or float"),
+            PortType::SignalFloat
+        );
+        assert_eq!(
+            PortType::from_xml_type("float/signal"),
+            PortType::SignalFloat
+        );
+        assert_eq!(
+            PortType::from_xml_type("float / signal"),
+            PortType::SignalFloat
+        );
     }
 
     #[test]
@@ -330,9 +352,9 @@ mod tests {
 
     #[test]
     fn test_module_from_str() {
-        assert_eq!(Module::from_str("max"), Module::Max);
-        assert_eq!(Module::from_str("msp"), Module::Msp);
-        assert_eq!(Module::from_str("jit"), Module::Other("jit".to_string()));
+        assert_eq!(Module::parse("max"), Module::Max);
+        assert_eq!(Module::parse("msp"), Module::Msp);
+        assert_eq!(Module::parse("jit"), Module::Other("jit".to_string()));
     }
 
     #[test]

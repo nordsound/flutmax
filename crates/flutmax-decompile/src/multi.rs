@@ -58,8 +58,8 @@ fn decompile_multi_inner(
     main_name: &str,
     objdb: Option<&flutmax_objdb::ObjectDb>,
 ) -> Result<DecompileResult, DecompileError> {
-    let root: Value = serde_json::from_str(json_str)
-        .map_err(|e| DecompileError::JsonParse(e.to_string()))?;
+    let root: Value =
+        serde_json::from_str(json_str).map_err(|e| DecompileError::JsonParse(e.to_string()))?;
 
     let patcher = root
         .get("patcher")
@@ -82,8 +82,10 @@ fn decompile_multi_inner(
         // Check for embedded subpatcher
         if let Some(embedded_patcher) = b.get("patcher") {
             // Check classnamespace for special patcher types
-            let classnamespace = embedded_patcher.get("classnamespace")
-                .and_then(|v| v.as_str()).unwrap_or("box");
+            let classnamespace = embedded_patcher
+                .get("classnamespace")
+                .and_then(|v| v.as_str())
+                .unwrap_or("box");
 
             // Extract subpatcher name from the text field (e.g., "p delay" -> "delay")
             let sub_name = if let Some(text) = b.get("text").and_then(|t| t.as_str()) {
@@ -151,7 +153,14 @@ fn decompile_multi_inner(
         let source = crate::emitter::decompile_with_objdb(json_str, objdb)?;
         let main_file = format!("{}.flutmax", main_name);
         files.insert(main_file.clone(), source);
-        return Ok(DecompileResult { files, code_files, rnbo_patchers, gen_patchers, ui_files, main_file });
+        return Ok(DecompileResult {
+            files,
+            code_files,
+            rnbo_patchers,
+            gen_patchers,
+            ui_files,
+            main_file,
+        });
     }
 
     // Decompile each subpatcher
@@ -191,7 +200,14 @@ fn decompile_multi_inner(
     let main_file = format!("{}.flutmax", main_name);
     files.insert(main_file.clone(), main_source);
 
-    Ok(DecompileResult { files, code_files, rnbo_patchers, gen_patchers, ui_files, main_file })
+    Ok(DecompileResult {
+        files,
+        code_files,
+        rnbo_patchers,
+        gen_patchers,
+        ui_files,
+        main_file,
+    })
 }
 
 #[cfg(test)]
@@ -341,7 +357,11 @@ mod tests {
 
         let result = decompile_multi(json, "main").unwrap();
         // Should produce at least 2 files: main.flutmax + delay.flutmax
-        assert!(result.files.len() >= 2, "expected >= 2 files, got {}", result.files.len());
+        assert!(
+            result.files.len() >= 2,
+            "expected >= 2 files, got {}",
+            result.files.len()
+        );
         assert_eq!(result.main_file, "main.flutmax");
         assert!(result.files.contains_key("main.flutmax"));
         assert!(result.files.contains_key("delay.flutmax"));
@@ -447,10 +467,16 @@ mod tests {
 
         let result = decompile_multi(json, "main").unwrap();
         // Should track the gen~ subpatcher
-        assert!(!result.gen_patchers.is_empty(), "gen_patchers should not be empty");
+        assert!(
+            !result.gen_patchers.is_empty(),
+            "gen_patchers should not be empty"
+        );
         // Should have a file for the gen~ subpatcher
         let gen_file = result.gen_patchers.iter().next().unwrap();
-        assert!(result.files.contains_key(gen_file), "gen~ file should exist in files map");
+        assert!(
+            result.files.contains_key(gen_file),
+            "gen~ file should exist in files map"
+        );
     }
 
     #[test]
@@ -503,7 +529,10 @@ mod tests {
         // Parse and verify the UI file content
         let ui_content = &result.ui_files["synth.uiflutmax"];
         let parsed: serde_json::Value = serde_json::from_str(ui_content).unwrap();
-        assert!(parsed["_patcher"]["rect"].is_array(), "Should have _patcher.rect");
+        assert!(
+            parsed["_patcher"]["rect"].is_array(),
+            "Should have _patcher.rect"
+        );
         assert_eq!(parsed["_patcher"]["rect"][0], 100.0);
     }
 }

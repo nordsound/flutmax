@@ -109,31 +109,28 @@ impl<'a> Lexer<'a> {
     /// Skip whitespace only (not comments). Returns `Some(Comment token)` if a
     /// comment was found, or `None` if no comment follows whitespace.
     fn skip_whitespace_and_maybe_comment(&mut self) -> Option<Token> {
-        loop {
-            // Skip whitespace
+        // Skip whitespace
+        while let Some(ch) = self.peek() {
+            if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        // Check for line comment — emit as token instead of skipping
+        if self.peek() == Some(b'/') && self.peek_at(1) == Some(b'/') {
+            let line = self.line;
+            let col = self.col;
+            let start = self.pos;
+            // Consume until end of line
             while let Some(ch) = self.peek() {
-                if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
-                    self.advance();
-                } else {
+                if ch == b'\n' {
                     break;
                 }
+                self.advance();
             }
-            // Check for line comment — emit as token instead of skipping
-            if self.peek() == Some(b'/') && self.peek_at(1) == Some(b'/') {
-                let line = self.line;
-                let col = self.col;
-                let start = self.pos;
-                // Consume until end of line
-                while let Some(ch) = self.peek() {
-                    if ch == b'\n' {
-                        break;
-                    }
-                    self.advance();
-                }
-                let text = std::str::from_utf8(&self.source[start..self.pos]).unwrap();
-                return Some(Token::new(TokenType::Comment, text, line, col));
-            }
-            break;
+            let text = std::str::from_utf8(&self.source[start..self.pos]).unwrap();
+            return Some(Token::new(TokenType::Comment, text, line, col));
         }
         None
     }
@@ -234,7 +231,7 @@ impl<'a> Lexer<'a> {
                 // BUT only if the previous significant token is not an identifier/number/rparen
                 // (to handle `sub(1, -2)` vs operator `-`)
                 // For simplicity: if `-` followed by digit, lex as number
-                if self.peek_at(1).map_or(false, |c| c.is_ascii_digit()) {
+                if self.peek_at(1).is_some_and(|c| c.is_ascii_digit()) {
                     self.lex_number(line, col)
                 } else {
                     self.lex_operator(line, col)
@@ -259,7 +256,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn is_operator_char_at(&self, offset: usize) -> bool {
-        self.peek_at(offset).map_or(false, is_operator_char)
+        self.peek_at(offset).is_some_and(is_operator_char)
     }
 
     /// Lex an identifier: `[a-zA-Z_][a-zA-Z0-9_]*(-[a-zA-Z0-9_]+)*`
@@ -284,7 +281,7 @@ impl<'a> Lexer<'a> {
             if let Some(next) = self.peek_at(1) {
                 if next.is_ascii_alphanumeric() || next == b'_' {
                     self.advance(); // consume `-`
-                    // consume segment
+                                    // consume segment
                     while let Some(ch) = self.peek() {
                         if ch.is_ascii_alphanumeric() || ch == b'_' {
                             self.advance();
@@ -340,7 +337,7 @@ impl<'a> Lexer<'a> {
         if let Some(ch) = self.peek() {
             if ch == b'e' || ch == b'E' {
                 self.advance(); // consume `e`/`E`
-                // Optional sign
+                                // Optional sign
                 if let Some(sign) = self.peek() {
                     if sign == b'+' || sign == b'-' {
                         self.advance();
@@ -417,7 +414,10 @@ fn is_ident_start(ch: u8) -> bool {
 }
 
 fn is_operator_char(ch: u8) -> bool {
-    matches!(ch, b'*' | b'+' | b'/' | b'%' | b'!' | b'<' | b'>' | b'&' | b'|' | b'^' | b'?')
+    matches!(
+        ch,
+        b'*' | b'+' | b'/' | b'%' | b'!' | b'<' | b'>' | b'&' | b'|' | b'^' | b'?'
+    )
 }
 
 fn keyword_or_ident(text: &str) -> TokenType {
@@ -484,16 +484,10 @@ mod tests {
         assert_eq!(
             toks,
             vec![
-                Wire,
-                Identifier, // osc
-                Eq,
-                Identifier, // cycle
-                Tilde,
-                LParen,
-                NumberLit, // 440
-                RParen,
-                Semicolon,
-                Eof,
+                Wire, Identifier, // osc
+                Eq, Identifier, // cycle
+                Tilde, LParen, NumberLit, // 440
+                RParen, Semicolon, Eof,
             ]
         );
     }
@@ -593,10 +587,7 @@ mod tests {
     #[test]
     fn test_comment_skipped() {
         let toks = types("// comment\nwire x = 1;");
-        assert_eq!(
-            toks,
-            vec![Wire, Identifier, Eq, NumberLit, Semicolon, Eof]
-        );
+        assert_eq!(toks, vec![Wire, Identifier, Eq, NumberLit, Semicolon, Eof]);
     }
 
     #[test]
@@ -674,10 +665,7 @@ mod tests {
     #[test]
     fn test_msg_tokens() {
         let toks = types(r#"msg click = "bang";"#);
-        assert_eq!(
-            toks,
-            vec![Msg, Identifier, Eq, StringLit, Semicolon, Eof]
-        );
+        assert_eq!(toks, vec![Msg, Identifier, Eq, StringLit, Semicolon, Eof]);
     }
 
     #[test]
@@ -711,9 +699,6 @@ mod tests {
     fn test_complex_expr() {
         // `mul~(osc, 0.5)` — tilde identifier with float arg
         let lex = lexemes("mul~(osc, 0.5)");
-        assert_eq!(
-            lex,
-            vec!["mul", "~", "(", "osc", ",", "0.5", ")", ""]
-        );
+        assert_eq!(lex, vec!["mul", "~", "(", "osc", ",", "0.5", ")", ""]);
     }
 }
