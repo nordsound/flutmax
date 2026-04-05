@@ -180,7 +180,7 @@ flutmax is Pure Rust with no C dependencies, making cross-platform bindings stra
 
 ```rust
 // Unified crate — one dependency for everything
-let maxpat = flutmax::compile("out a: signal;\nwire osc = cycle~(440);\nout a: signal = osc;").unwrap();
+let maxpat = flutmax::compile("wire osc = cycle~(440);\nout audio: signal = osc;").unwrap();
 let source = flutmax::decompile(&maxpat).unwrap();
 
 // Or use sub-crates for fine-grained control
@@ -198,7 +198,7 @@ cd bindings/python && maturin develop
 import flutmax_py
 import json
 
-maxpat = flutmax_py.compile("out a: signal;\nwire osc = cycle~(440);\nout a: signal = osc;")
+maxpat = flutmax_py.compile("wire osc = cycle~(440);\nout audio: signal = osc;")
 source = flutmax_py.decompile(maxpat)
 ast = json.loads(flutmax_py.parse("wire osc = cycle~(440);"))
 ```
@@ -213,7 +213,7 @@ cd bindings/wasm && wasm-pack build --target web
 import init, { compile, decompile, parse } from './flutmax_wasm.js';
 await init();
 
-const maxpat = compile("out a: signal;\nwire osc = cycle~(440);\nout a: signal = osc;");
+const maxpat = compile("wire osc = cycle~(440);\nout audio: signal = osc;");
 ```
 
 ## IDE Support

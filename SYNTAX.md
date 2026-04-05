@@ -175,8 +175,11 @@ Parser determination: If the token immediately after `in`/`out` is a number, it 
 // Implicit port index (v0.4.0 recommended, index determined by declaration order)
 in freq: float;          // -> index 0
 in cutoff: float;        // -> index 1
-out audio: signal;       // -> index 0
+out audio: signal;       // -> index 0 (declaration only, assigned later)
 out monitor: float;      // -> index 1
+
+// Inline assignment (declaration + assignment in one statement)
+out audio: signal = osc;      // Declares output port and assigns in one line
 
 // Explicit port index (backward-compatible, use when special reordering is needed)
 in 0 (freq): float;
@@ -184,6 +187,25 @@ in 1 (cutoff): float;
 out 0 (audio): signal;
 out 1 (monitor): float;
 ```
+
+### Inline Output Assignment
+
+Output ports can combine declaration and assignment in a single statement:
+
+```flutmax
+wire osc = cycle~(440);
+out audio: signal = osc;     // Preferred: declare and assign together
+```
+
+This is equivalent to the separate declaration and assignment form:
+
+```flutmax
+out audio: signal;
+wire osc = cycle~(440);
+out[0] = osc;
+```
+
+The inline form is recommended for readability. The decompiler outputs this form by default.
 
 ### Safety of Implicit Port Indices
 
