@@ -122,7 +122,8 @@ flutmax decompile --multi complex_patch.maxpat -o output/main.flutmax
 # Validate a .maxpat (static checks)
 flutmax validate patch.maxpat
 
-# Validate via Max runtime (requires Max with validator patch running)
+# Validate via Max runtime (requires Max 9 with validator patch running)
+# See scripts/max-validator/README.md for setup instructions
 flutmax validate --max patch.maxpat
 ```
 
