@@ -2227,7 +2227,7 @@ mod tests {
         };
         let ui = UiData::from_json(r#"{ "osc": { "rect": [250, 350, 90, 24] } }"#).unwrap();
 
-        let box_json = build_box(&node, "obj-1", 100.0, 50.0, "box", 1, None, Some(&ui));
+        let box_json = build_box(&node, &BoxContext { id: "obj-1", x: 100.0, y: 50.0, classnamespace: "box", serial: 1, port_index: None, ui_data: Some(&ui) });
         let rect = box_json["box"]["patching_rect"].as_array().unwrap();
 
         // Should use UI data rect, not auto-layout position
@@ -2263,7 +2263,7 @@ mod tests {
         )
         .unwrap();
 
-        let box_json = build_box(&node, "obj-1", 100.0, 50.0, "box", 1, None, Some(&ui));
+        let box_json = build_box(&node, &BoxContext { id: "obj-1", x: 100.0, y: 50.0, classnamespace: "box", serial: 1, port_index: None, ui_data: Some(&ui) });
         let box_obj = &box_json["box"];
 
         // Decorative attributes should be present
@@ -2288,7 +2288,7 @@ mod tests {
         };
         let ui = UiData::from_json(r#"{ "osc": { "rect": [250, 350, 90, 24] } }"#).unwrap();
 
-        let box_json = build_box(&node, "obj-1", 100.0, 50.0, "box", 1, None, Some(&ui));
+        let box_json = build_box(&node, &BoxContext { id: "obj-1", x: 100.0, y: 50.0, classnamespace: "box", serial: 1, port_index: None, ui_data: Some(&ui) });
         let rect = box_json["box"]["patching_rect"].as_array().unwrap();
 
         // Should use auto-layout position since there's no varname to match
