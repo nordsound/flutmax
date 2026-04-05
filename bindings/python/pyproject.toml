@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "flutmax"
-version = "0.1.0"
+version = "0.1.1"
 description = "Transpiler between .flutmax text and Max/MSP .maxpat patches"
 readme = "README.md"
 license = {text = "MIT"}
