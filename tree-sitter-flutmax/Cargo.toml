@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Tree-sitter grammar for the flutmax DSL"
 license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
 build = "bindings/rust/build.rs"
 
 [lib]
