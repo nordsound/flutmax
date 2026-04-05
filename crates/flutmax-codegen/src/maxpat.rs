@@ -228,13 +228,15 @@ fn build_patcher(
                 .copied();
             build_box(
                 node,
-                &mapped_id,
-                x,
-                y,
-                classnamespace,
-                serial,
-                port_index,
-                ui_data,
+                &BoxContext {
+                    id: &mapped_id,
+                    x,
+                    y,
+                    classnamespace,
+                    serial,
+                    port_index,
+                    ui_data,
+                },
             )
         })
         .collect();
@@ -402,20 +404,22 @@ fn build_patcher(
     Ok(Value::Object(patcher))
 }
 
-/// Generate box JSON from a PatchNode.
-fn build_box(
-    node: &PatchNode,
-    id: &str,
+/// Layout and rendering context for generating a box.
+struct BoxContext<'a> {
+    id: &'a str,
     x: f64,
     y: f64,
-    classnamespace: &str,
+    classnamespace: &'a str,
     serial: usize,
     port_index: Option<usize>,
-    ui_data: Option<&UiData>,
-) -> Value {
-    let is_rnbo = classnamespace == "rnbo";
-    let is_gen = classnamespace == "dsp.gen";
-    let (maxclass, width, height) = classify_maxclass(node, classnamespace);
+    ui_data: Option<&'a UiData>,
+}
+
+/// Generate box JSON from a PatchNode.
+fn build_box(node: &PatchNode, ctx: &BoxContext) -> Value {
+    let is_rnbo = ctx.classnamespace == "rnbo";
+    let is_gen = ctx.classnamespace == "dsp.gen";
+    let (maxclass, width, height) = classify_maxclass(node, ctx.classnamespace);
     let outlettype = compute_outlettype(node, is_rnbo, is_gen);
 
     // RNBO mode: outlet/outport has numoutlets=0 (sink)
@@ -428,7 +432,7 @@ fn build_box(
         };
 
     let mut box_obj = Map::new();
-    box_obj.insert("id".into(), json!(id));
+    box_obj.insert("id".into(), json!(ctx.id));
     box_obj.insert("maxclass".into(), json!(maxclass));
     box_obj.insert("numinlets".into(), json!(node.num_inlets));
     box_obj.insert("numoutlets".into(), json!(effective_num_outlets));
@@ -437,7 +441,7 @@ fn build_box(
         box_obj.insert("outlettype".into(), json!(outlettype));
     }
 
-    box_obj.insert("patching_rect".into(), json!([x, y, width, height]));
+    box_obj.insert("patching_rect".into(), json!([ctx.x, ctx.y, width, height]));
 
     // text field: for newobj and message
     if maxclass == "newobj" {
@@ -448,22 +452,22 @@ fn build_box(
                     let name = node
                         .varname
                         .clone()
-                        .unwrap_or_else(|| format!("port_{}", port_index.unwrap_or(0)));
+                        .unwrap_or_else(|| format!("port_{}", ctx.port_index.unwrap_or(0)));
                     format!("inport {}", name)
                 }
                 "inlet~" => {
-                    let idx = port_index.unwrap_or(0) + 1; // RNBO uses 1-based
+                    let idx = ctx.port_index.unwrap_or(0) + 1; // RNBO uses 1-based
                     format!("in~ {}", idx)
                 }
                 "outlet" => {
                     let name = node
                         .varname
                         .clone()
-                        .unwrap_or_else(|| format!("port_{}", port_index.unwrap_or(0)));
+                        .unwrap_or_else(|| format!("port_{}", ctx.port_index.unwrap_or(0)));
                     format!("outport {}", name)
                 }
                 "outlet~" => {
-                    let idx = port_index.unwrap_or(0) + 1; // RNBO uses 1-based
+                    let idx = ctx.port_index.unwrap_or(0) + 1; // RNBO uses 1-based
                     format!("out~ {}", idx)
                 }
                 _ => {
@@ -484,11 +488,11 @@ fn build_box(
             // gen~ mode: inlet/outlet → `in N` / `out N` (1-based)
             match node.object_name.as_str() {
                 "inlet" | "inlet~" => {
-                    let idx = port_index.unwrap_or(0) + 1; // gen~ uses 1-based
+                    let idx = ctx.port_index.unwrap_or(0) + 1; // gen~ uses 1-based
                     format!("in {}", idx)
                 }
                 "outlet" | "outlet~" => {
-                    let idx = port_index.unwrap_or(0) + 1; // gen~ uses 1-based
+                    let idx = ctx.port_index.unwrap_or(0) + 1; // gen~ uses 1-based
                     format!("out {}", idx)
                 }
                 _ => {
@@ -562,8 +566,9 @@ fn build_box(
     }
 
     // .uiflutmax UI data: override position and add decorative attributes
-    if let Some(ui_entry) =
-        ui_data.and_then(|ui| node.varname.as_ref().and_then(|vn| ui.entries.get(vn)))
+    if let Some(ui_entry) = ctx
+        .ui_data
+        .and_then(|ui| node.varname.as_ref().and_then(|vn| ui.entries.get(vn)))
     {
         // Override position from UI data
         if let Some(rect) = ui_entry.get("rect") {
@@ -581,13 +586,13 @@ fn build_box(
 
     // RNBO mode: add rnbo_serial and rnbo_uniqueid
     if is_rnbo {
-        box_obj.insert("rnbo_serial".into(), json!(serial));
+        box_obj.insert("rnbo_serial".into(), json!(ctx.serial));
         box_obj.insert(
             "rnbo_uniqueid".into(),
             json!(format!(
                 "{}_{}",
                 node.object_name.replace('~', "_tilde"),
-                id
+                ctx.id
             )),
         );
     }
@@ -1891,7 +1896,18 @@ mod tests {
             code: Some("function bang() { outlet(0, 42); }".into()),
         };
 
-        let box_json = build_box(&node, "obj-1", 100.0, 50.0, "box", 1, None, None);
+        let box_json = build_box(
+            &node,
+            &BoxContext {
+                id: "obj-1",
+                x: 100.0,
+                y: 50.0,
+                classnamespace: "box",
+                serial: 1,
+                port_index: None,
+                ui_data: None,
+            },
+        );
         let box_obj = &box_json["box"];
 
         assert_eq!(box_obj["maxclass"], "v8.codebox");
@@ -1917,7 +1933,18 @@ mod tests {
             code: None,
         };
 
-        let box_json = build_box(&node, "obj-1", 100.0, 50.0, "box", 1, None, None);
+        let box_json = build_box(
+            &node,
+            &BoxContext {
+                id: "obj-1",
+                x: 100.0,
+                y: 50.0,
+                classnamespace: "box",
+                serial: 1,
+                port_index: None,
+                ui_data: None,
+            },
+        );
         let box_obj = &box_json["box"];
 
         assert_eq!(box_obj["maxclass"], "codebox");
@@ -2007,13 +2034,15 @@ mod tests {
         };
         let box_json = build_box(
             &inlet_node,
-            "obj-1",
-            100.0,
-            50.0,
-            "dsp.gen",
-            1,
-            Some(0),
-            None,
+            &BoxContext {
+                id: "obj-1",
+                x: 100.0,
+                y: 50.0,
+                classnamespace: "dsp.gen",
+                serial: 1,
+                port_index: Some(0),
+                ui_data: None,
+            },
         );
         let box_obj = &box_json["box"];
         assert_eq!(box_obj["maxclass"], "newobj");
@@ -2036,13 +2065,15 @@ mod tests {
         };
         let box_json = build_box(
             &outlet_node,
-            "obj-2",
-            100.0,
-            120.0,
-            "dsp.gen",
-            2,
-            Some(0),
-            None,
+            &BoxContext {
+                id: "obj-2",
+                x: 100.0,
+                y: 120.0,
+                classnamespace: "dsp.gen",
+                serial: 2,
+                port_index: Some(0),
+                ui_data: None,
+            },
         );
         let box_obj = &box_json["box"];
         assert_eq!(box_obj["maxclass"], "newobj");

@@ -459,7 +459,7 @@ pub fn analyze(
     }
 
     // Collect inlet names for $N template argument resolution
-    let in_port_names: Vec<String> = in_decls.iter().map(|d| d.name.clone()).collect();
+    let _in_port_names: Vec<String> = in_decls.iter().map(|d| d.name.clone()).collect();
 
     // Step 7: Build wire expressions, tracking defined names to handle cycles.
     // When a wire references a source that hasn't been defined yet (back-edge
@@ -501,7 +501,6 @@ pub fn analyze(
             &incoming_map,
             &wire_names,
             &inlet_id_to_name,
-            &in_port_names,
             &defined_names,
             &wire_numoutlets,
             objdb,
@@ -1100,7 +1099,7 @@ fn analyze_with_subpatchers(
         wire_names.insert(id, name.clone());
     }
 
-    let in_port_names: Vec<String> = in_decls.iter().map(|d| d.name.clone()).collect();
+    let _in_port_names: Vec<String> = in_decls.iter().map(|d| d.name.clone()).collect();
 
     // Step 7: Build wire expressions, tracking defined names to handle cycles.
     let mut wires = Vec::new();
@@ -1152,7 +1151,6 @@ fn analyze_with_subpatchers(
                 &incoming_map,
                 &wire_names,
                 &inlet_id_to_name,
-                &in_port_names,
                 &defined_names,
                 &wire_numoutlets,
                 objdb,
@@ -1650,7 +1648,7 @@ fn remove_triggers<'a>(
 ///
 /// This stable sort preserves the relative order of connections from different sources.
 fn sort_fanout_lines(
-    lines: &mut Vec<MaxLine>,
+    lines: &mut [MaxLine],
     box_map: &HashMap<&str, &MaxBox>,
     trigger_ordered_sources: &HashSet<(String, u32)>,
 ) {
@@ -2214,7 +2212,6 @@ fn build_wire_expr(
     incoming_map: &HashMap<&str, Vec<(u32, IncomingConnection)>>,
     wire_names: &HashMap<&str, String>,
     inlet_names: &HashMap<&str, String>,
-    _in_port_names: &[String],
     defined_names: &HashSet<String>,
     wire_numoutlets: &HashMap<&str, u32>,
     objdb: Option<&ObjectDb>,
@@ -2405,6 +2402,7 @@ fn build_wire_expr(
         // priority (it defines the initial/default value in Max) and the
         // connection is moved to extra_connections (direct_connection).
         let mut lit_idx = 0;
+        #[allow(clippy::needless_range_loop)]
         for i in 1..positional_literals.len() {
             if lit_idx >= literal_args.len() {
                 break;
@@ -2419,8 +2417,8 @@ fn build_wire_expr(
         }
         // Any remaining literals are structural args (appended after inlets)
         // Store them starting from first None position at the end
-        for j in lit_idx..literal_args.len() {
-            positional_literals.push(Some(literal_args[j].clone()));
+        for lit in &literal_args[lit_idx..] {
+            positional_literals.push(Some(lit.clone()));
         }
     } else {
         // Text args fill inlets from position 0 onwards
@@ -3175,9 +3173,6 @@ fn extract_text_attrs(text: &str) -> Vec<(String, String)> {
     attrs
 }
 
-/// Build the combined attribute list for a box, merging:
-/// 1. `extra_attrs` from the box JSON (non-structural fields like `minimum`, `maximum`)
-/// 2. `@key value` pairs from the text field (for `newobj` boxes)
 /// Check if a MaxBox is a codebox with inline code.
 fn is_codebox_with_code(node: &MaxBox) -> bool {
     matches!(node.maxclass.as_str(), "v8.codebox" | "codebox")
@@ -3259,10 +3254,13 @@ pub fn is_decorative_attr(key: &str) -> bool {
 
 /// Build the combined attribute list for a box, separating functional from decorative.
 ///
+/// Key-value attribute list.
+type AttrList = Vec<(String, String)>;
+
 /// Returns (functional_attrs, decorative_attrs).
 /// Functional attrs go into `.flutmax` `.attr()` chains.
 /// Decorative attrs go into `.uiflutmax` sidecar file.
-fn build_box_attrs_split(b: &MaxBox) -> (Vec<(String, String)>, Vec<(String, String)>) {
+fn build_box_attrs_split(b: &MaxBox) -> (AttrList, AttrList) {
     let all_attrs = build_box_attrs(b);
     let mut functional = Vec::new();
     let mut decorative = Vec::new();
