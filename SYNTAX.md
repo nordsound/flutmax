@@ -1,6 +1,6 @@
 # flutmax Syntax Specification
 
-- **Version**: 0.4.0
+- **Syntax Version**: 0.4.0
 - **Date**: 2026-04-01
 - **Parser**: Pure Rust recursive descent parser (`crates/flutmax-parser/src/parser.rs`)
 
