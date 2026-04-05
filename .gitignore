@@ -14,6 +14,7 @@ target/
 # Tree-sitter
 tree-sitter-flutmax/node_modules/
 tree-sitter-flutmax/target/
+tree-sitter-flutmax/package-lock.json
 
 # npm
 node_modules/
