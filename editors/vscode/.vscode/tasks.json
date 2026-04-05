@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "compile",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "Build LSP Server",
+      "type": "shell",
+      "command": "cargo build --release -p flutmax-lsp",
+      "options": {
+        "cwd": "${workspaceFolder}/../.."
+      },
+      "group": "build",
+      "problemMatcher": "$rustc"
+    }
+  ]
+}

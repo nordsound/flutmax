@@ -1,0 +1,18 @@
+[package]
+name = "flutmax"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
+description = "Transpiler between .flutmax text and Max/MSP .maxpat patches"
+keywords = ["max-msp", "audio", "transpiler", "dsl"]
+categories = ["parser-implementations", "multimedia::audio"]
+
+[dependencies]
+flutmax-ast = { version = "0.1.0", path = "../flutmax-ast" }
+flutmax-parser = { version = "0.1.0", path = "../flutmax-parser" }
+flutmax-sema = { version = "0.1.0", path = "../flutmax-sema" }
+flutmax-codegen = { version = "0.1.0", path = "../flutmax-codegen" }
+flutmax-decompile = { version = "0.1.0", path = "../flutmax-decompile" }
+flutmax-objdb = { version = "0.1.0", path = "../flutmax-objdb" }
+serde_json = "1"

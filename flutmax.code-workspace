@@ -1,0 +1,9 @@
+{
+  "folders": [
+    { "path": "." },
+    { "path": "editors/vscode", "name": "VS Code Extension" }
+  ],
+  "settings": {
+    "flutmax.lsp.path": "${workspaceFolder:VS Code Extension}/../../target/release/flutmax-lsp"
+  }
+}

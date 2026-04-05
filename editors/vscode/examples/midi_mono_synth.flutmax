@@ -1,0 +1,23 @@
+// Monophonic MIDI synth with portamento
+// Demonstrates: messages, destructuring, .in, named args
+wire (key, velocity) = unpack(notein());
+
+// Portamento (glide between notes)
+wire freq = mtof(key);
+wire porta = line~();
+msg glide = "$1 50";
+glide.in = freq;
+porta.in = glide;
+
+// Dual oscillator (slight detune for thickness)
+wire osc1 = saw~(frequency: porta);
+wire osc2 = saw~(frequency: mul~(porta, 1.005));
+wire mix = mul~(add~(osc1, osc2), 0.5);
+
+// Velocity-controlled lowpass filter
+wire vel_scale = mul~(velocity, 15.0);
+wire filter = lores~(mix, add~(vel_scale, 200), 0.6);
+
+// Output gain
+wire gain = mul~(filter, 0.3);
+out audio: signal = gain;

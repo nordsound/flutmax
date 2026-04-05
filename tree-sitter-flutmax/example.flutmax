@@ -1,0 +1,23 @@
+// Simple synthesizer patch
+in 0 (audio_in): signal;
+in 1 (cutoff): float;
+out 0 (filtered): signal;
+
+// Oscillator
+wire osc = cycle~(440);
+wire noise = noise~();
+
+// Mixing
+wire mix = mul~(osc, 0.5);
+
+// Filter chain
+wire filtered = biquad~(mix, cutoff);
+
+// Nested processing
+wire deep = mul~(biquad~(cycle~(440), cutoff), 0.8);
+
+// Direct connection
+node_a.in[0] = filtered;
+
+// Output connection
+node_out.in[0] = mix;

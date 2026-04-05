@@ -1,0 +1,7 @@
+// L3_trigger_fanout.flutmax — signal fanout (no trigger needed)
+in 0 (freq): float;
+out 0 (audio): signal;
+
+wire osc = cycle~(freq);
+wire mix = add~(osc, osc);
+out[0] = mix;

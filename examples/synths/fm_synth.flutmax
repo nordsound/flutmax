@@ -1,0 +1,25 @@
+// 2-operator FM synthesizer
+// Carrier + Modulator with ratio and index control
+in carrier_freq: float;
+in mod_ratio: float;
+in mod_index: float;
+in amplitude: float;
+
+// Modulator frequency = carrier * ratio
+wire mod_freq = mul(carrier_freq, mod_ratio);
+
+// Modulator depth = mod_freq * index
+wire mod_depth = mul(mod_freq, mod_index);
+
+// Modulator oscillator
+wire modulator = cycle~(mod_freq);
+
+// Scale modulator by depth
+wire mod_signal = mul~(modulator, mod_depth);
+
+// Carrier oscillator (FM: base freq + modulation signal)
+wire carrier = cycle~(mod_signal);
+
+// Final amplitude scaling
+wire output = mul~(carrier, amplitude);
+out audio: signal = output;

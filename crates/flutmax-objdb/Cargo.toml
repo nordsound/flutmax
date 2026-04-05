@@ -1,0 +1,11 @@
+[package]
+name = "flutmax-objdb"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
+description = "Max object definition database parsed from .maxref.xml refpages"
+
+[dependencies]
+quick-xml = { version = "0.37", features = ["serialize"] }
+serde = { version = "1", features = ["derive"] }

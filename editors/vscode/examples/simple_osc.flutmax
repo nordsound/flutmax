@@ -1,0 +1,9 @@
+// Simple oscillator with gain control
+// Demonstrates: ports, wire, named arguments, inline out
+in freq: float;
+in gain: float;
+
+wire osc = cycle~(frequency: freq);
+wire amp = mul~(osc, gain);
+
+out audio: signal = amp;

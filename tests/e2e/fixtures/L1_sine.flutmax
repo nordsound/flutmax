@@ -1,0 +1,5 @@
+// L1_sine.flutmax — 440Hz fixed sine wave output
+out 0 (audio): signal;
+
+wire osc = cycle~(440);
+out[0] = osc;

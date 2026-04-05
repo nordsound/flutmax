@@ -1,0 +1,26 @@
+// Stereo ping-pong delay effect
+// Demonstrates: feedback loops (tapin~/tapout~), .in shorthand
+in input: signal;
+in delay_time: float;
+in feedback: float;
+
+// Left delay line
+wire tap_l = tapin~(input);
+wire delay_l = tapout~(tap_l, delay_time);
+
+// Right delay line (1.5x delay for ping-pong)
+wire tap_r = tapin~(input);
+wire delay_r = tapout~(tap_r, mul~(delay_time, 1.5));
+
+// Cross-feedback (ping-pong)
+wire fb_l = mul~(delay_l, feedback);
+wire fb_r = mul~(delay_r, feedback);
+tap_l.in = add~(input, fb_r);
+tap_r.in = add~(input, fb_l);
+
+// Wet/dry mix
+wire mix_l = add~(input, mul~(delay_l, 0.5));
+wire mix_r = add~(input, mul~(delay_r, 0.5));
+
+out left: signal = mix_l;
+out right: signal = mix_r;

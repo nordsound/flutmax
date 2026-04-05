@@ -1,0 +1,5 @@
+# Known roundtrip mismatches (semantic comparison).
+# Each line is a path relative to the Max.app C74 directory.
+# Remove entries as bugs are fixed — the test catches regressions.
+#
+# Currently empty: all 1018 patches pass strict semantic comparison.

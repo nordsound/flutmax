@@ -1,0 +1,8 @@
+// 2-channel signal mixer with balance control
+in ch1: signal;
+in ch2: signal;
+in balance: float;
+
+wire ch1_amp = mul~(ch1, sub(1, balance));
+wire ch2_amp = mul~(ch2, balance);
+out mixed: signal = add~(ch1_amp, ch2_amp);

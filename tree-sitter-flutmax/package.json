@@ -1,0 +1,31 @@
+{
+  "name": "tree-sitter-flutmax",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for the flutmax DSL",
+  "main": "bindings/node",
+  "scripts": {
+    "test": "npx tree-sitter test",
+    "generate": "npx tree-sitter generate"
+  },
+  "keywords": [
+    "tree-sitter",
+    "parser",
+    "flutmax"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "tree-sitter": [
+    {
+      "scope": "source.flutmax",
+      "file-types": [
+        "flutmax"
+      ],
+      "highlights": "queries/highlights.scm",
+      "injection-regex": "flutmax"
+    }
+  ],
+  "dependencies": {
+    "tree-sitter-cli": "^0.26.7"
+  }
+}

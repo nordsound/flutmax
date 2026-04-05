@@ -1,0 +1,20 @@
+[package]
+name = "flutmax-parser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
+description = "Parser for .flutmax files (hand-written lexer + recursive descent)"
+
+[features]
+default = []
+tree-sitter-legacy = ["tree-sitter", "tree-sitter-flutmax"]
+
+[dependencies]
+flutmax-ast = { version = "0.1.0", path = "../flutmax-ast" }
+tree-sitter = { version = "0.25", optional = true }
+tree-sitter-flutmax = { version = "0.1.0", path = "../../tree-sitter-flutmax", optional = true }
+
+[dev-dependencies]
+tree-sitter = "0.25"
+tree-sitter-flutmax = { version = "0.1.0", path = "../../tree-sitter-flutmax" }

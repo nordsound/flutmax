@@ -1,0 +1,64 @@
+=====================================
+feedback declaration
+=====================================
+
+feedback fb: signal;
+
+---
+
+(source_file
+  (feedback_declaration
+    name: (plain_identifier)
+    type: (type_name)))
+
+=====================================
+feedback assignment
+=====================================
+
+feedback fb = tapin~(mixed, 1000);
+
+---
+
+(source_file
+  (feedback_assignment
+    target: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+=====================================
+feedback declaration and assignment
+=====================================
+
+feedback fb: signal;
+wire delayed = tapout~(fb, 500);
+feedback fb = tapin~(mixed, 1000);
+
+---
+
+(source_file
+  (feedback_declaration
+    name: (plain_identifier)
+    type: (type_name))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (feedback_assignment
+    target: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))

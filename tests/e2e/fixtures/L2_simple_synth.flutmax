@@ -1,0 +1,7 @@
+// L2_simple_synth.flutmax — frequency-controlled synth
+in 0 (freq): float;
+out 0 (audio): signal;
+
+wire osc = cycle~(freq);
+wire amp = mul~(osc, 0.5);
+out[0] = amp;

@@ -1,0 +1,11 @@
+[package]
+name = "flutmax-sema"
+version = "0.1.0"
+edition = "2021"
+description = "Semantic analysis: type checking, trigger insertion, abstraction registry"
+license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
+
+[dependencies]
+flutmax-ast = { version = "0.1.0", path = "../flutmax-ast" }
+serde = { version = "1", features = ["derive"] }

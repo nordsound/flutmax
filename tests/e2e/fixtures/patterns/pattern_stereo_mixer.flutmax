@@ -1,0 +1,13 @@
+// pattern_stereo_mixer.flutmax — Simple stereo mixer
+in 0 (ch1): signal;
+in 1 (ch2): signal;
+in 2 (ch1_vol): float;
+in 3 (ch2_vol): float;
+out 0 (left): signal;
+out 1 (right): signal;
+
+wire ch1_scaled = mul~(ch1, ch1_vol);
+wire ch2_scaled = mul~(ch2, ch2_vol);
+wire mix = add~(ch1_scaled, ch2_scaled);
+out[0] = mix;
+out[1] = mix;

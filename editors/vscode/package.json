@@ -1,0 +1,64 @@
+{
+  "name": "flutmax",
+  "displayName": "flutmax",
+  "description": "Language support for flutmax (.flutmax → .maxpat transpiler)",
+  "version": "0.1.0",
+  "publisher": "flutmax",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:flutmax"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [{
+      "id": "flutmax",
+      "aliases": ["flutmax", "Flutmax"],
+      "extensions": [".flutmax"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "flutmax",
+      "scopeName": "source.flutmax",
+      "path": "./syntaxes/flutmax.tmLanguage.json"
+    }],
+    "snippets": [{
+      "language": "flutmax",
+      "path": "./snippets/flutmax.json"
+    }],
+    "configuration": [{
+      "title": "flutmax",
+      "properties": {
+        "flutmax.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the flutmax Language Server"
+        },
+        "flutmax.lsp.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the flutmax-lsp binary (auto-detected if empty)"
+        }
+      }
+    }]
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json",
+    "test": "node ./out/test/runTests.js",
+    "test:unit": "TS_NODE_PROJECT=tsconfig.test.json mocha"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.8",
+    "glob": "^10.3.0",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}

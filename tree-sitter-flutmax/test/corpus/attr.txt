@@ -1,0 +1,206 @@
+================
+Wire with single attribute
+================
+
+wire w = flonum(x).attr(minimum: 0.);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))))
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))))))
+
+================
+Wire with multiple attributes
+================
+
+wire w = flonum(x).attr(minimum: 0., maximum: 100., value: 50.);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))))
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))))))
+
+================
+Wire with string attribute value
+================
+
+wire dial = live.dial().attr(parameter_longname: "Cutoff");
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (dotted_identifier
+          (plain_identifier)
+          (dotted_segment))))
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (string))))))
+
+================
+Wire with identifier attribute value
+================
+
+wire osc = cycle~(freq).attr(phase: half);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))))
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (plain_identifier))))))
+
+================
+Wire without attributes (unchanged)
+================
+
+wire osc = cycle~(440);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number)))))
+
+================
+Message with attributes
+================
+
+msg click = "bang".attr(patching_rect: 100.);
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string)
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))))))
+
+================
+Message without attributes (unchanged)
+================
+
+msg click = "bang";
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string)))
+
+================
+Wire with multiline attributes
+================
+
+wire dial = live.dial().attr(
+    parameter_longname: "Cutoff",
+    parameter_shortname: "Cut",
+    minimum: 20.,
+    maximum: 20000.
+);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (dotted_identifier
+          (plain_identifier)
+          (dotted_segment))))
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (string))
+        (attr_pair
+          key: (plain_identifier)
+          value: (string))
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))))))
+
+================
+Wire with integer attribute value
+================
+
+wire w = flonum(x).attr(minimum: 0, maximum: 100);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))))
+    attrs: (attr_chain
+      pairs: (attr_list
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))
+        (attr_pair
+          key: (plain_identifier)
+          value: (number))))))

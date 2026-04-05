@@ -1,0 +1,20 @@
+// Subtractive synthesis with filter
+// Dual oscillator (saw + pulse) -> biquad lowpass -> amplitude
+in freq: float;
+in cutoff: float;
+in resonance: float;
+in amp: float;
+
+// Dual oscillator: saw + detuned pulse
+wire saw = phasor~(freq, 0);
+wire pulse_freq = mul(freq, 2);
+wire pulse = phasor~(pulse_freq, 0);
+
+// Mix oscillators (pulse at half volume)
+wire osc_mix = add~(saw, mul~(pulse, 0.5));
+
+// Filter (biquad lowpass)
+wire filtered = biquad~(osc_mix, cutoff, resonance);
+
+// Amplitude control
+out audio: signal = mul~(filtered, amp);

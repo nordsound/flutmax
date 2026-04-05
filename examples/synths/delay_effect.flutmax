@@ -1,0 +1,23 @@
+// Delay with feedback and dry/wet mix
+// Uses feedback keyword for tapin~/tapout~ loop
+in input: signal;
+in delay_time: float;
+in feedback_amt: float;
+in dry_wet: float;
+
+// Feedback loop: tapin~/tapout~ pair
+feedback fb: signal;
+wire delayed = tapout~(fb, delay_time);
+wire fb_signal = mul~(delayed, feedback_amt);
+wire mixed_input = add~(input, fb_signal);
+feedback fb = tapin~(mixed_input, 2000);
+
+// Dry/wet mix
+wire wet = mul~(delayed, dry_wet);
+wire dry_amount = sub(1, dry_wet);
+wire dry = mul~(input, dry_amount);
+wire left_out = add~(dry, wet);
+
+// Left = dry/wet mix, Right = delayed signal
+out left: signal = left_out;
+out right: signal = delayed;

@@ -1,0 +1,8 @@
+in 0 (input): signal;
+out 0 (output): signal;
+
+feedback fb: signal;
+wire delayed = tapout~(fb, 500);
+wire mixed = add~(input, mul~(delayed, 0.3));
+feedback fb = tapin~(mixed, 1000);
+out[0] = mixed;

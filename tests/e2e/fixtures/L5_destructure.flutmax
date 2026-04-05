@@ -1,0 +1,7 @@
+in 0 (coords): list;
+out 0 (x): float;
+out 1 (y): float;
+
+wire (a, b) = unpack(coords);
+out[0] = a;
+out[1] = b;

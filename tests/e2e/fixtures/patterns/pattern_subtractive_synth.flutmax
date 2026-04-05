@@ -1,0 +1,10 @@
+// pattern_subtractive_synth.flutmax — Subtractive synthesis
+in 0 (freq): float;
+in 1 (cutoff): float;
+in 2 (resonance): float;
+out 0 (audio): signal;
+
+wire saw = phasor~(freq, 0);
+wire filtered = biquad~(saw, cutoff, resonance);
+wire amp = mul~(filtered, 0.5);
+out[0] = amp;

@@ -1,0 +1,81 @@
+================
+Message declaration with bang
+================
+
+msg click = "bang";
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string)))
+
+================
+Message declaration with template
+================
+
+msg format = "set $1 $2";
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string)))
+
+================
+Message declaration with note data
+================
+
+msg note = "60 100";
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string)))
+
+================
+Message declaration used with wire
+================
+
+msg click = "bang";
+wire btn = button();
+btn.in[0] = click;
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))))
+  (direct_connection
+    target: (input_port_access
+      object: (plain_identifier)
+      index: (integer))
+    value: (identifier
+      (plain_identifier))))
+
+================
+Multiple message declarations
+================
+
+msg bang_msg = "bang";
+msg set_msg = "set 42";
+
+---
+
+(source_file
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string))
+  (msg_declaration
+    name: (plain_identifier)
+    content: (string)))

@@ -1,0 +1,12 @@
+[package]
+name = "flutmax-validate"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
+description = "Validation for .maxpat files: JSON structure, static analysis, Node for Max runtime"
+
+[dependencies]
+flutmax-objdb = { version = "0.1.0", path = "../flutmax-objdb" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

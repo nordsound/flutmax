@@ -1,0 +1,19 @@
+[package]
+name = "tree-sitter-flutmax"
+version = "0.1.0"
+edition = "2021"
+description = "Tree-sitter grammar for the flutmax DSL"
+license = "MIT"
+build = "bindings/rust/build.rs"
+
+[lib]
+path = "bindings/rust/lib.rs"
+
+[dependencies]
+tree-sitter-language = "0.1"
+
+[dev-dependencies]
+tree-sitter = "0.25"
+
+[build-dependencies]
+cc = "1"

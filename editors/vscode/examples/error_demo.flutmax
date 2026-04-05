@@ -1,0 +1,16 @@
+// Intentional errors for LSP diagnostics demo
+// Open in VS Code with the flutmax extension to see error highlighting.
+
+in freq: float;
+
+// OK: valid wire with named arg
+wire osc = cycle~(frequency: freq);
+
+// ERROR: missing semicolon
+wire broken = mul~(osc, 0.5)
+
+// ERROR: undefined reference
+wire gain = mul~(undefined_wire, 0.3);
+
+// OK: output
+out audio: signal = osc;

@@ -1,0 +1,190 @@
+================
+Tuple expression with identifiers
+================
+
+wire packed = (x, y, z);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (tuple_expression
+      (identifier
+        (plain_identifier))
+      (identifier
+        (plain_identifier))
+      (identifier
+        (plain_identifier)))))
+
+================
+Tuple expression with two elements
+================
+
+wire pair = (a, b);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (tuple_expression
+      (identifier
+        (plain_identifier))
+      (identifier
+        (plain_identifier)))))
+
+================
+Tuple expression with numbers
+================
+
+wire nums = (1, 2, 3);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (tuple_expression
+      (number)
+      (number)
+      (number))))
+
+================
+Tuple expression with mixed types
+================
+
+wire mixed = (x, 42, 3.14);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (tuple_expression
+      (identifier
+        (plain_identifier))
+      (number)
+      (number))))
+
+================
+Tuple expression with object call inside
+================
+
+wire t = (button(), x);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (tuple_expression
+      (object_call
+        object: (object_name
+          (plain_identifier)))
+      (identifier
+        (plain_identifier)))))
+
+================
+Destructuring wire
+================
+
+wire (a, b, c) = unpack(coords);
+
+---
+
+(source_file
+  (destructuring_wire
+    names: (identifier_list
+      (plain_identifier)
+      (plain_identifier)
+      (plain_identifier))
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))))))
+
+================
+Destructuring wire with two names
+================
+
+wire (x, y) = data;
+
+---
+
+(source_file
+  (destructuring_wire
+    names: (identifier_list
+      (plain_identifier)
+      (plain_identifier))
+    value: (identifier
+      (plain_identifier))))
+
+================
+Destructuring wire with tuple value
+================
+
+wire (a, b) = (x, y);
+
+---
+
+(source_file
+  (destructuring_wire
+    names: (identifier_list
+      (plain_identifier)
+      (plain_identifier))
+    value: (tuple_expression
+      (identifier
+        (plain_identifier))
+      (identifier
+        (plain_identifier)))))
+
+================
+Tuple and destructuring in full patch
+================
+
+in 0 (x): float;
+in 1 (y): float;
+out 0 (sum): float;
+
+wire packed = (x, y);
+wire (a, b) = packed;
+out[0] = a;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (tuple_expression
+      (identifier
+        (plain_identifier))
+      (identifier
+        (plain_identifier))))
+  (destructuring_wire
+    names: (identifier_list
+      (plain_identifier)
+      (plain_identifier))
+    value: (identifier
+      (plain_identifier)))
+  (out_assignment
+    index: (integer)
+    value: (identifier
+      (plain_identifier))))

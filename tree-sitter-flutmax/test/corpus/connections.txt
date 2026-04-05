@@ -1,0 +1,102 @@
+================
+Output assignment
+================
+
+out[0] = osc;
+
+---
+
+(source_file
+  (out_assignment
+    index: (integer)
+    value: (identifier
+      (plain_identifier))))
+
+================
+Output assignment with object call
+================
+
+out[0] = mul~(sig, 0.5);
+
+---
+
+(source_file
+  (out_assignment
+    index: (integer)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+Direct connection
+================
+
+node_a.in[0] = trigger;
+
+---
+
+(source_file
+  (direct_connection
+    target: (input_port_access
+      object: (plain_identifier)
+      index: (integer))
+    value: (identifier
+      (plain_identifier))))
+
+================
+Direct connection with object call value
+================
+
+node_a.in[0] = cycle~(440);
+
+---
+
+(source_file
+  (direct_connection
+    target: (input_port_access
+      object: (plain_identifier)
+      index: (integer))
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number)))))
+
+================
+Output port access in expression
+================
+
+wire x = node.out[0];
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (output_port_access
+      object: (plain_identifier)
+      index: (integer))))
+
+================
+Output port access as call argument
+================
+
+wire y = mul~(node.out[0], 0.5);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (output_port_access
+          object: (plain_identifier)
+          index: (integer))
+        (number)))))

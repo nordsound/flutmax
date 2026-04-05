@@ -1,0 +1,23 @@
+// Simple granular texture
+// Uses multiple detuned oscillators to simulate grain cloud
+in base_freq: float;
+in spread: float;
+in density: float;
+
+// Generate detuned frequencies
+wire freq1 = sub(base_freq, spread);
+wire freq2 = base_freq;
+wire freq3 = add(base_freq, spread);
+wire freq4 = add(base_freq, mul(spread, 2));
+
+// Oscillator bank
+wire osc1 = cycle~(freq1);
+wire osc2 = cycle~(freq2);
+wire osc3 = cycle~(freq3);
+wire osc4 = cycle~(freq4);
+
+// Mix and normalize (4 oscillators -> divide by 4)
+wire mix12 = add~(osc1, osc2);
+wire mix34 = add~(osc3, osc4);
+wire mix_all = add~(mix12, mix34);
+out audio: signal = mul~(mix_all, 0.25);

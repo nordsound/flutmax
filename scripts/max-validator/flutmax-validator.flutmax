@@ -1,0 +1,27 @@
+// flutmax-validator.flutmax
+// .maxpat validation patch (Max 9 / v8.codebox)
+//
+// Architecture:
+//   CLI --UDP 7401--> [node.script] --outlet--> [v8.codebox] --File+JSON--> validate
+//   CLI <--UDP 7402-- [node.script] <--outlet-- [v8.codebox] <--result JSON
+//
+// Usage: Open in Max to auto-start the UDP server.
+//        Run `flutmax validate --max` from the CLI.
+
+// Auto-start node.script on patch load
+wire lb = loadbang();
+msg msg_script = "script start";
+msg_script.in = lb;
+
+// N4M UDP server
+wire server = node.script("flutmax-validate-server.mjs");
+server.in = msg_script;
+
+// Run validation in v8.codebox
+wire inspector = v8.codebox("flutmax-inspect.js");
+
+// Forward validate command from server to inspector
+inspector.in = server;
+
+// Return result from inspector to server
+server.in = inspector;

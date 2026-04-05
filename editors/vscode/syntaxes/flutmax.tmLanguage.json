@@ -1,0 +1,209 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "flutmax",
+  "scopeName": "source.flutmax",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#port-declaration" },
+    { "include": "#wire-declaration" },
+    { "include": "#out-assignment" },
+    { "include": "#direct-connection" },
+    { "include": "#expression" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.double-slash.flutmax",
+      "match": "//.*$"
+    },
+
+    "keywords": {
+      "match": "\\b(wire|in|out)\\b",
+      "name": "keyword.control.flutmax"
+    },
+
+    "types": {
+      "match": "\\b(signal|float|int|bang|list|symbol)\\b",
+      "name": "support.type.flutmax"
+    },
+
+    "port-declaration": {
+      "comment": "in 0 (freq): float;  or  out 1 (audio): signal;",
+      "match": "\\b(in|out)\\s+(\\d+)\\s*\\(\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\)\\s*:\\s*(signal|float|int|bang|list|symbol)\\s*;",
+      "captures": {
+        "1": { "name": "keyword.control.flutmax" },
+        "2": { "name": "constant.numeric.integer.flutmax" },
+        "3": { "name": "variable.parameter.flutmax" },
+        "4": { "name": "support.type.flutmax" }
+      }
+    },
+
+    "wire-declaration": {
+      "comment": "wire name = ...;",
+      "begin": "\\b(wire)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.flutmax" },
+        "2": { "name": "variable.other.wire.flutmax" },
+        "3": { "name": "keyword.operator.assignment.flutmax" }
+      },
+      "end": ";",
+      "endCaptures": {
+        "0": { "name": "punctuation.terminator.flutmax" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "out-assignment": {
+      "comment": "out[0] = ...;",
+      "begin": "\\b(out)\\s*\\[\\s*(\\d+)\\s*\\]\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.flutmax" },
+        "2": { "name": "constant.numeric.integer.flutmax" },
+        "3": { "name": "keyword.operator.assignment.flutmax" }
+      },
+      "end": ";",
+      "endCaptures": {
+        "0": { "name": "punctuation.terminator.flutmax" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "direct-connection": {
+      "comment": "node_a.in[0] = ...;",
+      "begin": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\[\\s*(\\d+)\\s*\\]\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "variable.other.object.flutmax" },
+        "2": { "name": "punctuation.accessor.flutmax" },
+        "3": { "name": "variable.other.port.flutmax" },
+        "4": { "name": "constant.numeric.integer.flutmax" },
+        "5": { "name": "keyword.operator.assignment.flutmax" }
+      },
+      "end": ";",
+      "endCaptures": {
+        "0": { "name": "punctuation.terminator.flutmax" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#tilde-call" },
+        { "include": "#plain-call" },
+        { "include": "#tilde-identifier" },
+        { "include": "#plain-identifier" },
+        { "include": "#punctuation" }
+      ]
+    },
+
+    "tilde-call": {
+      "comment": "cycle~(440), biquad~(osc, cutoff)",
+      "begin": "([a-zA-Z_][a-zA-Z0-9_]*~)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.tilde.flutmax" },
+        "2": { "name": "punctuation.paren.open.flutmax" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.paren.close.flutmax" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "plain-call": {
+      "comment": "pack(1, 2), trigger(b, b)",
+      "begin": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.flutmax" },
+        "2": { "name": "punctuation.paren.open.flutmax" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.paren.close.flutmax" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "tilde-identifier": {
+      "comment": "Standalone tilde identifier: cycle~, phasor~",
+      "match": "[a-zA-Z_][a-zA-Z0-9_]*~",
+      "name": "entity.name.function.tilde.flutmax"
+    },
+
+    "plain-identifier": {
+      "match": "[a-zA-Z_][a-zA-Z0-9_]*",
+      "name": "variable.other.flutmax"
+    },
+
+    "number": {
+      "patterns": [
+        {
+          "comment": "Float: 3.14, 0.5",
+          "match": "\\b\\d+\\.\\d+\\b",
+          "name": "constant.numeric.float.flutmax"
+        },
+        {
+          "comment": "Integer: 440, 0",
+          "match": "\\b\\d+\\b",
+          "name": "constant.numeric.integer.flutmax"
+        }
+      ]
+    },
+
+    "string": {
+      "name": "string.quoted.double.flutmax",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.flutmax",
+          "match": "\\\\."
+        }
+      ]
+    },
+
+    "punctuation": {
+      "patterns": [
+        {
+          "match": "[\\(\\)]",
+          "name": "punctuation.paren.flutmax"
+        },
+        {
+          "match": "[\\[\\]]",
+          "name": "punctuation.bracket.flutmax"
+        },
+        {
+          "match": ";",
+          "name": "punctuation.terminator.flutmax"
+        },
+        {
+          "match": "=",
+          "name": "keyword.operator.assignment.flutmax"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.flutmax"
+        },
+        {
+          "match": "\\.",
+          "name": "punctuation.accessor.flutmax"
+        },
+        {
+          "match": ":",
+          "name": "punctuation.colon.flutmax"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+// L7: State counter example
+// state construct for Control-rate local state
+
+out 0 (count): int;
+
+state counter: int = 0;
+wire next = add(counter, 1);
+state counter = next;
+out[0] = next;

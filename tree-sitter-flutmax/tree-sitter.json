@@ -1,0 +1,15 @@
+{
+  "grammars": [
+    {
+      "name": "flutmax",
+      "camelcase": "Flutmax",
+      "scope": "source.flutmax",
+      "path": ".",
+      "file-types": ["flutmax"]
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT"
+  }
+}

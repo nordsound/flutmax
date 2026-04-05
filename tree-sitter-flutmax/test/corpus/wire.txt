@@ -1,0 +1,108 @@
+================
+Wire with tilde object call
+================
+
+wire osc = cycle~(440);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number)))))
+
+================
+Wire with multiple arguments
+================
+
+wire filtered = biquad~(osc, cutoff);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (identifier
+          (plain_identifier))))))
+
+================
+Wire with signal-rate arithmetic alias
+================
+
+wire out = mul~(sig, 0.5);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+Wire with control-rate arithmetic alias
+================
+
+wire doubled = mul(val, 2);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+Wire with plain object (no tilde)
+================
+
+wire msg = pack(1, 2, 3);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (number)
+        (number)
+        (number)))))
+
+================
+Wire with no arguments
+================
+
+wire t = bang();
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier)))))

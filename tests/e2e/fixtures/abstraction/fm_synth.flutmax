@@ -1,0 +1,5 @@
+in 0 (base_freq): float;
+out 0 (audio): signal;
+wire carrier = oscillator(base_freq);
+wire amp = mul~(carrier, 0.5);
+out[0] = amp;

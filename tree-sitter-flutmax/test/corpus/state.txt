@@ -1,0 +1,89 @@
+=====================================
+state declaration
+=====================================
+
+state counter: int = 0;
+
+---
+
+(source_file
+  (state_declaration
+    name: (plain_identifier)
+    type: (control_type)
+    init: (number)))
+
+=====================================
+state declaration with float
+=====================================
+
+state volume: float = 0.5;
+
+---
+
+(source_file
+  (state_declaration
+    name: (plain_identifier)
+    type: (control_type)
+    init: (number)))
+
+=====================================
+state assignment
+=====================================
+
+state counter = next;
+
+---
+
+(source_file
+  (state_assignment
+    target: (plain_identifier)
+    value: (identifier
+      (plain_identifier))))
+
+=====================================
+state assignment with expression
+=====================================
+
+state counter = add(counter, 1);
+
+---
+
+(source_file
+  (state_assignment
+    target: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+=====================================
+state declaration and assignment
+=====================================
+
+state counter: int = 0;
+wire next = add(counter, 1);
+state counter = next;
+
+---
+
+(source_file
+  (state_declaration
+    name: (plain_identifier)
+    type: (control_type)
+    init: (number))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (state_assignment
+    target: (plain_identifier)
+    value: (identifier
+      (plain_identifier))))

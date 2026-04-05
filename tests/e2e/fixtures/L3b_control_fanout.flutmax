@@ -1,0 +1,10 @@
+// L3b_control_fanout.flutmax — control rate fanout (trigger needed)
+in 0 (val): float;
+out 0 (result_a): float;
+out 1 (result_b): float;
+
+wire doubled = mul(val, 2);
+wire a = add(doubled, 100);
+wire b = sub(doubled, 100);
+out[0] = a;
+out[1] = b;

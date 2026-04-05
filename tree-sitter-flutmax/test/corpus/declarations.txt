@@ -1,0 +1,71 @@
+================
+Port declaration - signal input
+================
+
+in 0 (audio_in): signal;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name)))
+
+================
+Port declaration - float parameter
+================
+
+in 1 (cutoff): float;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name)))
+
+================
+Port declaration - output
+================
+
+out 0 (lowpass): signal;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name)))
+
+================
+Multiple port declarations
+================
+
+in 0 (input_sig): signal;
+in 1 (cutoff): float;
+out 0 (lowpass): signal;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name)))

@@ -1,0 +1,9 @@
+// Multi-file synthesizer using abstractions
+// References oscillator.flutmax and mixer_2ch.flutmax
+in freq1: float;
+in freq2: float;
+in balance: float;
+
+wire osc1 = oscillator(freq1);
+wire osc2 = oscillator(freq2);
+out audio: signal = mixer_2ch(osc1, osc2, balance);

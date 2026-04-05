@@ -1,0 +1,4 @@
+// Simple sine oscillator abstraction
+in freq: float;
+wire osc = cycle~(freq);
+out audio: signal = osc;

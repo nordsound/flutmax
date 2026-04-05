@@ -1,0 +1,13 @@
+// pattern_fm_synth.flutmax — FM synthesis
+in 0 (carrier_freq): float;
+in 1 (mod_ratio): float;
+in 2 (mod_index): float;
+out 0 (audio): signal;
+
+wire mod_freq = mul(carrier_freq, mod_ratio);
+wire mod_depth = mul(mod_freq, mod_index);
+wire modulator = cycle~(mod_freq);
+wire mod_signal = mul~(modulator, mod_depth);
+wire carrier_input = add~(carrier_freq, mod_signal);
+wire carrier = cycle~(carrier_input);
+out[0] = carrier;

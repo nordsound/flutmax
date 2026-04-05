@@ -1,0 +1,7 @@
+{
+  "ui": "tdd",
+  "extension": ["ts"],
+  "require": ["ts-node/register"],
+  "spec": "src/test/unit/**/*.test.ts",
+  "timeout": 10000
+}

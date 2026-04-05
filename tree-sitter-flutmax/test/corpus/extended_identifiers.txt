@@ -1,0 +1,183 @@
+================
+Dotted identifier in object call
+================
+
+wire vid = jit.gl.videoplane();
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (dotted_identifier
+          (plain_identifier)
+          (plain_identifier)
+          (plain_identifier))))))
+
+================
+Dotted identifier with two segments
+================
+
+wire dial = live.dial(0.5);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (dotted_identifier
+          (plain_identifier)
+          (plain_identifier)))
+      arguments: (argument_list
+        (number)))))
+
+================
+Dotted identifier as expression reference
+================
+
+wire x = jit.gl.videoplane();
+out[0] = x;
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (dotted_identifier
+          (plain_identifier)
+          (plain_identifier)
+          (plain_identifier)))))
+  (out_assignment
+    index: (integer)
+    value: (identifier
+      (plain_identifier))))
+
+================
+Hyphenated identifier in object call
+================
+
+wire x = drunk-walk(10);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (number)))))
+
+================
+Hyphenated identifier as reference
+================
+
+wire x = drunk-walk(10);
+wire y = mul(x, 2);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+Dotted identifier with hyphens in segments
+================
+
+wire x = my-lib.my-obj(1);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (dotted_identifier
+          (plain_identifier)
+          (plain_identifier)))
+      arguments: (argument_list
+        (number)))))
+
+================
+Dotted identifier does not conflict with output port access
+================
+
+wire node = cycle~(440);
+wire x = node.out[0];
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (output_port_access
+      object: (plain_identifier)
+      index: (integer))))
+
+================
+Dotted identifier does not conflict with input port access
+================
+
+wire node = cycle~(440);
+node.in[0] = 440;
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number))))
+  (direct_connection
+    target: (input_port_access
+      object: (plain_identifier)
+      index: (integer))
+    value: (number)))
+
+================
+Tilde identifier with dots
+================
+
+wire x = jit.gl.pix~();
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier)))))

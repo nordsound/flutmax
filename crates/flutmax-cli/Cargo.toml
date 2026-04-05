@@ -1,0 +1,24 @@
+[package]
+name = "flutmax-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nordsound/flutmax"
+description = "CLI entry point for the flutmax transpiler"
+
+[[bin]]
+name = "flutmax"
+path = "src/main.rs"
+
+[dependencies]
+flutmax-parser = { version = "0.1.0", path = "../flutmax-parser" }
+flutmax-ast = { version = "0.1.0", path = "../flutmax-ast" }
+flutmax-sema = { version = "0.1.0", path = "../flutmax-sema" }
+flutmax-codegen = { version = "0.1.0", path = "../flutmax-codegen" }
+flutmax-objdb = { version = "0.1.0", path = "../flutmax-objdb" }
+flutmax-validate = { version = "0.1.0", path = "../flutmax-validate" }
+flutmax-decompile = { version = "0.1.0", path = "../flutmax-decompile" }
+serde_json = "1"
+
+[dev-dependencies]
+serde_json = "1"

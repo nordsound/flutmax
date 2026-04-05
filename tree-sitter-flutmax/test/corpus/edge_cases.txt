@@ -1,0 +1,395 @@
+================
+All arithmetic aliases (signal rate)
+================
+
+wire a = add~(sig1, sig2);
+wire b = mul~(sig, 0.5);
+wire c = sub~(sig1, sig2);
+wire d = dvd~(sig, 2);
+wire e = mod~(sig, 0.25);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (identifier
+          (plain_identifier)))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (identifier
+          (plain_identifier)))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+All arithmetic aliases (control rate)
+================
+
+wire a = add(x, 1);
+wire b = mul(x, 2);
+wire c = sub(x, 3);
+wire d = dvd(x, 4);
+wire e = mod(x, 5);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+Nested object call
+================
+
+wire chain = biquad~(cycle~(440), 1000);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (object_call
+          object: (object_name
+            (tilde_identifier))
+          arguments: (argument_list
+            (number)))
+        (number)))))
+
+================
+Deeply nested object call
+================
+
+wire deep = mul~(biquad~(cycle~(440), cutoff), 0.8);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (object_call
+          object: (object_name
+            (tilde_identifier))
+          arguments: (argument_list
+            (object_call
+              object: (object_name
+                (tilde_identifier))
+              arguments: (argument_list
+                (number)))
+            (identifier
+              (plain_identifier))))
+        (number)))))
+
+================
+Multiline argument list
+================
+
+wire complex = biquad~(
+  cycle~(440),
+  cutoff,
+  0.707
+);
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (object_call
+          object: (object_name
+            (tilde_identifier))
+          arguments: (argument_list
+            (number)))
+        (identifier
+          (plain_identifier))
+        (number)))))
+
+================
+String literal argument
+================
+
+wire msg = print("debug: value is");
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (plain_identifier))
+      arguments: (argument_list
+        (string)))))
+
+================
+All type name variants
+================
+
+in 0 (audio): signal;
+in 1 (freq): float;
+in 2 (note): int;
+in 3 (trig): bang;
+in 4 (data): list;
+in 5 (name): symbol;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name)))
+
+================
+Wire with simple identifier value
+================
+
+wire output = input;
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (identifier
+      (plain_identifier))))
+
+================
+Wire with number value
+================
+
+wire val = 42;
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (number)))
+
+================
+Wire with float value
+================
+
+wire val = 3.14;
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (number)))
+
+================
+Multiple comments
+================
+
+// first comment
+// second comment
+wire x = osc~(440);
+
+---
+
+(source_file
+  (comment)
+  (comment)
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number)))))
+
+================
+Comment after statement
+================
+
+wire x = osc~(440);
+// end of file
+
+---
+
+(source_file
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number))))
+  (comment))
+
+================
+Full patch example
+================
+
+in 0 (audio_in): signal;
+in 1 (cutoff): float;
+out 0 (filtered): signal;
+
+// processing chain
+wire sig = cycle~(440);
+wire out = biquad~(sig, cutoff);
+node_a.in[0] = out;
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (comment)
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number))))
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (identifier
+          (plain_identifier)))))
+  (direct_connection
+    target: (input_port_access
+      object: (plain_identifier)
+      index: (integer))
+    value: (identifier
+      (plain_identifier))))

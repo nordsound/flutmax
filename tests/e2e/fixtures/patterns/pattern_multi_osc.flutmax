@@ -1,0 +1,11 @@
+// pattern_multi_osc.flutmax — Multiple oscillators with mixing
+in 0 (freq): float;
+in 1 (detune): float;
+out 0 (audio): signal;
+
+wire freq2 = add(freq, detune);
+wire osc1 = cycle~(freq);
+wire osc2 = cycle~(freq2);
+wire mix = add~(osc1, osc2);
+wire normalized = mul~(mix, 0.5);
+out[0] = normalized;

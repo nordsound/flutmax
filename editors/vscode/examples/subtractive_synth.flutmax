@@ -1,0 +1,20 @@
+// Subtractive synthesizer with filter and envelope
+// Demonstrates: named args, inline nesting, attributes
+in freq: float;
+in cutoff: float;
+in resonance: float;
+in gate: bang;
+
+// Dual oscillator (saw + detuned rect for thickness)
+wire saw = saw~(frequency: freq);
+wire sub = rect~(frequency: mul~(freq, 0.998));
+wire mix = add~(saw, mul~(sub, 0.3));
+
+// Resonant lowpass filter
+wire filter = lores~(mix, cutoff, resonance);
+
+// Amplitude envelope
+wire env = adsr~(gate).attr(attack: 10, decay: 200, sustain: 0.7, release: 500);
+wire output = mul~(filter, env);
+
+out audio: signal = output;

@@ -1,0 +1,45 @@
+================
+Line comment
+================
+
+// this is a comment
+wire x = osc~(440);
+
+---
+
+(source_file
+  (comment)
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (number)))))
+
+================
+Inline comment between statements
+================
+
+in 0 (audio): signal;
+// processing chain
+wire out = gain~(audio, 0.8);
+
+---
+
+(source_file
+  (port_declaration
+    direction: (direction)
+    index: (integer)
+    name: (plain_identifier)
+    type: (type_name))
+  (comment)
+  (wire_declaration
+    name: (plain_identifier)
+    value: (object_call
+      object: (object_name
+        (tilde_identifier))
+      arguments: (argument_list
+        (identifier
+          (plain_identifier))
+        (number)))))

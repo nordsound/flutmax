@@ -1,0 +1,7 @@
+in 0 (x): float;
+in 1 (y): float;
+in 2 (z): float;
+out 0 (coords): list;
+
+wire packed = (x, y, z);
+out[0] = packed;

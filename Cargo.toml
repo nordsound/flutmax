@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "crates/flutmax-ast",
+    "crates/flutmax-parser",
+    "crates/flutmax-sema",
+    "crates/flutmax-codegen",
+    "crates/flutmax-objdb",
+    "crates/flutmax-validate",
+    "crates/flutmax-decompile",
+    "crates/flutmax-cli",
+    "crates/flutmax-lsp",
+    "crates/flutmax",
+]
+exclude = ["bindings/wasm"]
+resolver = "2"

@@ -1,0 +1,32 @@
+# Build
+target/
+/dist/
+
+# OS
+.DS_Store
+
+# IDE
+/.vscode/
+.idea/
+# Keep editors/vscode/.vscode/ for extension dev config
+!editors/vscode/.vscode/
+
+# Tree-sitter
+tree-sitter-flutmax/node_modules/
+tree-sitter-flutmax/target/
+
+# npm
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Temporary
+/tmp/
+*.log
+
+# Test data (third-party patches, not redistributable)
+tests/real_patches/
