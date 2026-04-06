@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::process;
@@ -39,6 +40,7 @@ fn print_usage() {
     eprintln!();
     eprintln!("USAGE:");
     eprintln!("    flutmax compile <input.flutmax> -o <output.maxpat>");
+    eprintln!("    flutmax compile --gen <input.flutmax> -o <output.maxpat>");
     eprintln!("    flutmax compile <input_dir/> -o <output_dir/>");
     eprintln!("    flutmax decompile <input.maxpat> -o <output.flutmax>");
     eprintln!("    flutmax decompile --multi <input.maxpat> -o <output.flutmax>");
@@ -53,6 +55,7 @@ fn print_usage() {
     eprintln!();
     eprintln!("OPTIONS:");
     eprintln!("    -o <path>      Output file or directory path (required for compile/decompile)");
+    eprintln!("    --gen          Compile as gen~ patcher (classnamespace: dsp.gen)");
     eprintln!("    --multi        Multi-file decompile: extract subpatchers as separate files");
     eprintln!("    -h, --help     Print help information");
     eprintln!("    -V, --version  Print version information");
@@ -61,6 +64,7 @@ fn print_usage() {
 fn run_compile(args: &[String]) {
     let mut input_path: Option<&str> = None;
     let mut output_path: Option<&str> = None;
+    let mut gen_mode = false;
 
     let mut i = 0;
     while i < args.len() {
@@ -72,6 +76,10 @@ fn run_compile(args: &[String]) {
                 }
                 output_path = Some(&args[i + 1]);
                 i += 2;
+            }
+            "--gen" => {
+                gen_mode = true;
+                i += 1;
             }
             "--help" | "-h" => {
                 print_usage();
@@ -117,17 +125,13 @@ fn run_compile(args: &[String]) {
 
     let input_meta = fs::metadata(input_path);
     if input_meta.map(|m| m.is_dir()).unwrap_or(false) {
-        run_compile_directory(input_path, output_path, objdb.as_ref());
+        run_compile_directory(input_path, output_path, objdb.as_ref(), gen_mode);
     } else {
-        run_compile_single(input_path, output_path, objdb.as_ref());
+        run_compile_single(input_path, output_path, objdb.as_ref(), gen_mode);
     }
 }
 
-fn run_compile_single(
-    input_path: &str,
-    output_path: &str,
-    objdb: Option<&flutmax_objdb::ObjectDb>,
-) {
+fn run_compile_single(input_path: &str, output_path: &str, objdb: Option<&flutmax_objdb::ObjectDb>, gen_mode: bool) {
     // Read input file
     let source = match fs::read_to_string(input_path) {
         Ok(s) => s,
@@ -137,25 +141,29 @@ fn run_compile_single(
         }
     };
 
+    if gen_mode {
+        // gen~ mode: use compile_gen() with dsp.gen classnamespace
+        let json = match flutmax_cli::compile_gen(&source) {
+            Ok(j) => j,
+            Err(e) => {
+                eprintln!("error: gen~ compilation failed: {}", e);
+                process::exit(1);
+            }
+        };
+        write_output(output_path, &json);
+        eprintln!("compiled {} -> {} (gen~)", input_path, output_path);
+        return;
+    }
+
     // Read code files (.js, .genexpr) from the same directory
     let code_files = load_code_files(input_path);
-    let code_files_ref = if code_files.is_empty() {
-        None
-    } else {
-        Some(&code_files)
-    };
+    let code_files_ref = if code_files.is_empty() { None } else { Some(&code_files) };
 
     // Load .uiflutmax sidecar file if present
     let ui_data = load_ui_data(input_path);
 
     // Compile
-    let json = match flutmax_cli::compile_full_with_ui(
-        &source,
-        None,
-        code_files_ref,
-        objdb,
-        ui_data.as_ref(),
-    ) {
+    let json = match flutmax_cli::compile_full_with_ui(&source, None, code_files_ref, objdb, ui_data.as_ref()) {
         Ok(j) => j,
         Err(e) => {
             eprintln!("error: compilation failed: {}", e);
@@ -166,10 +174,7 @@ fn run_compile_single(
     // Write output file
     write_output(output_path, &json);
     if ui_data.is_some() {
-        eprintln!(
-            "compiled {} -> {} (with .uiflutmax)",
-            input_path, output_path
-        );
+        eprintln!("compiled {} -> {} (with .uiflutmax)", input_path, output_path);
     } else {
         eprintln!("compiled {} -> {}", input_path, output_path);
     }
@@ -254,36 +259,23 @@ fn run_decompile(args: &[String]) {
 
     if multi {
         // Multi-file decompile: extract subpatchers as separate .flutmax files
-        run_decompile_multi(
-            &json_str,
-            base_name,
-            input_path,
-            output_path,
-            objdb.as_ref(),
-        );
+        run_decompile_multi(&json_str, base_name, input_path, output_path, objdb.as_ref());
     } else {
         // Single-file decompile with named args when objdb is available
-        let flutmax_source =
-            match flutmax_decompile::decompile_with_objdb(&json_str, objdb.as_ref()) {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("error: decompilation failed: {}", e);
-                    process::exit(1);
-                }
-            };
+        let flutmax_source = match flutmax_decompile::decompile_with_objdb(&json_str, objdb.as_ref()) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("error: decompilation failed: {}", e);
+                process::exit(1);
+            }
+        };
 
         write_output(output_path, &flutmax_source);
         eprintln!("decompiled {} -> {}", input_path, output_path);
     }
 }
 
-fn run_decompile_multi(
-    json_str: &str,
-    base_name: &str,
-    input_path: &str,
-    output_path: &str,
-    objdb: Option<&flutmax_objdb::ObjectDb>,
-) {
+fn run_decompile_multi(json_str: &str, base_name: &str, input_path: &str, output_path: &str, objdb: Option<&flutmax_objdb::ObjectDb>) {
     use std::path::Path;
 
     let result = match flutmax_decompile::decompile_multi_with_objdb(json_str, base_name, objdb) {
@@ -309,12 +301,7 @@ fn run_decompile_multi(
         if result.ui_files.is_empty() {
             eprintln!("decompiled {} -> {}", input_path, output_path);
         } else {
-            eprintln!(
-                "decompiled {} -> {} + {} ui file(s)",
-                input_path,
-                output_path,
-                result.ui_files.len()
-            );
+            eprintln!("decompiled {} -> {} + {} ui file(s)", input_path, output_path, result.ui_files.len());
         }
     } else {
         // Multiple files — write to output directory
@@ -350,18 +337,12 @@ fn run_decompile_multi(
         let total = result.files.len() + result.code_files.len() + result.ui_files.len();
         eprintln!(
             "decompiled {} -> {} files in {}",
-            input_path,
-            total,
-            dir.display()
+            input_path, total, dir.display()
         );
     }
 }
 
-fn run_compile_directory(
-    input_dir: &str,
-    output_dir: &str,
-    objdb: Option<&flutmax_objdb::ObjectDb>,
-) {
+fn run_compile_directory(input_dir: &str, output_dir: &str, objdb: Option<&flutmax_objdb::ObjectDb>, gen_mode: bool) {
     use flutmax_sema::registry::AbstractionRegistry;
     use std::path::Path;
 
@@ -434,42 +415,54 @@ fn run_compile_directory(
         registry.register(stem, ast);
     }
 
-    // 4. Read code files (.js, .genexpr) from input directory
+    // 4. Auto-detect gen~ subpatchers from gen~(name) / mc.gen~(name) references
+    let auto_gen_files = collect_gen_references(&parsed);
+
+    // 5. Read code files (.js, .genexpr) from input directory
     let code_files = load_code_files_from_dir(input_dir);
-    let code_files_ref = if code_files.is_empty() {
-        None
-    } else {
-        Some(&code_files)
-    };
+    let code_files_ref = if code_files.is_empty() { None } else { Some(&code_files) };
 
-    // 5. Compile each file with the registry, code files, and UI data
+    // 6. Compile each file with the registry, code files, and UI data
     for (i, (stem, source, _)) in parsed.iter().enumerate() {
-        // Load .uiflutmax sidecar file for this .flutmax file
-        let ui_data = load_ui_data(&flutmax_files[i].to_string_lossy());
-
-        let json = match flutmax_cli::compile_full_with_ui(
-            source,
-            Some(&registry),
-            code_files_ref,
-            objdb,
-            ui_data.as_ref(),
-        ) {
-            Ok(j) => j,
-            Err(e) => {
-                eprintln!(
-                    "error: compilation of '{}' failed: {}",
-                    flutmax_files[i].display(),
-                    e
-                );
-                process::exit(1);
+        let is_gen = gen_mode || auto_gen_files.contains(stem);
+        let json = if is_gen {
+            match flutmax_cli::compile_gen(source) {
+                Ok(j) => j,
+                Err(e) => {
+                    eprintln!(
+                        "error: gen~ compilation of '{}' failed: {}",
+                        flutmax_files[i].display(),
+                        e
+                    );
+                    process::exit(1);
+                }
+            }
+        } else {
+            let ui_data = load_ui_data(&flutmax_files[i].to_string_lossy());
+            match flutmax_cli::compile_full_with_ui(source, Some(&registry), code_files_ref, objdb, ui_data.as_ref()) {
+                Ok(j) => j,
+                Err(e) => {
+                    eprintln!(
+                        "error: compilation of '{}' failed: {}",
+                        flutmax_files[i].display(),
+                        e
+                    );
+                    process::exit(1);
+                }
             }
         };
 
-        // 6. Write each .maxpat
+        // 7. Write each .maxpat
         let output_file = Path::new(output_dir).join(format!("{}.maxpat", stem));
         let output_str = output_file.to_string_lossy().to_string();
         write_output(&output_str, &json);
-        eprintln!("compiled {} -> {}", flutmax_files[i].display(), output_str);
+        let mode_label = if is_gen { " (gen~)" } else { "" };
+        eprintln!(
+            "compiled {} -> {}{}",
+            flutmax_files[i].display(),
+            output_str,
+            mode_label
+        );
     }
 }
 
@@ -526,5 +519,61 @@ fn write_output(output_path: &str, content: &str) {
     if let Err(e) = fs::write(output_path, content) {
         eprintln!("error: failed to write '{}': {}", output_path, e);
         process::exit(1);
+    }
+}
+
+/// Collect gen~ subpatcher names referenced by `gen~(name)` or `mc.gen~(name)` calls
+/// across all parsed programs.
+fn collect_gen_references(programs: &[(String, String, flutmax_ast::Program)]) -> HashSet<String> {
+    let mut gen_files = HashSet::new();
+    for (_, _, ast) in programs {
+        for wire in &ast.wires {
+            collect_gen_refs_from_expr(&wire.value, &mut gen_files);
+        }
+        for out in &ast.out_decls {
+            if let Some(ref expr) = out.value {
+                collect_gen_refs_from_expr(expr, &mut gen_files);
+            }
+        }
+        for out in &ast.out_assignments {
+            collect_gen_refs_from_expr(&out.value, &mut gen_files);
+        }
+        for dc in &ast.direct_connections {
+            collect_gen_refs_from_expr(&dc.value, &mut gen_files);
+        }
+        for dw in &ast.destructuring_wires {
+            collect_gen_refs_from_expr(&dw.value, &mut gen_files);
+        }
+    }
+    gen_files
+}
+
+fn collect_gen_refs_from_expr(expr: &flutmax_ast::Expr, gen_files: &mut HashSet<String>) {
+    match expr {
+        flutmax_ast::Expr::Call { object, args } => {
+            if object == "gen~" || object == "mc.gen~" {
+                // First argument of gen~() is the subpatcher name (Ref or string literal)
+                if let Some(first_arg) = args.first() {
+                    match &first_arg.value {
+                        flutmax_ast::Expr::Ref(name) => {
+                            gen_files.insert(name.clone());
+                        }
+                        flutmax_ast::Expr::Lit(flutmax_ast::LitValue::Str(name)) => {
+                            gen_files.insert(name.clone());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            for arg in args {
+                collect_gen_refs_from_expr(&arg.value, gen_files);
+            }
+        }
+        flutmax_ast::Expr::Tuple(exprs) => {
+            for e in exprs {
+                collect_gen_refs_from_expr(e, gen_files);
+            }
+        }
+        _ => {}
     }
 }
