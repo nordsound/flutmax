@@ -101,7 +101,29 @@ The `.uiflutmax` also stores non-logic visual elements:
 ## Install
 
 ```bash
-cargo install flutmax
+cargo install flutmax-cli
+```
+
+### Max/MSP Integration
+
+flutmax works standalone for compiling and decompiling, but some features require a local Max installation:
+
+| Feature | Without Max | With Max |
+|---------|------------|----------|
+| Compile / Decompile | Full | Full |
+| Type checking (Signal/Control) | Basic (hardcoded rules) | Full (1573 objects from refpages) |
+| LSP completion & hover | Keywords + wire names only | + 1573 Max objects with inlet/outlet details |
+| Named arguments in decompile output | Positional only | Named (from inlet descriptions) |
+| Runtime validation (`--max`) | Not available | Available |
+
+flutmax automatically detects Max at its default install path. To specify a custom location, set the `MAX_INSTALL_PATH` environment variable:
+
+```bash
+# macOS
+export MAX_INSTALL_PATH="/Applications/Max.app"
+
+# Windows
+set MAX_INSTALL_PATH="C:\Program Files\Cycling '74\Max 8"
 ```
 
 ## Usage
