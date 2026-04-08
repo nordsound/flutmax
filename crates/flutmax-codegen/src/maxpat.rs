@@ -424,17 +424,31 @@ fn build_box(node: &PatchNode, ctx: &BoxContext) -> Value {
 
     // RNBO mode: outlet/outport has numoutlets=0 (sink)
     // gen~ mode: `out N` has numoutlets=0 (sink)
+    // RNBO inlet/inlet~ boxes expose a single outlet on the host side.
     let effective_num_outlets =
         if (is_rnbo || is_gen) && matches!(node.object_name.as_str(), "outlet" | "outlet~") {
             0
+        } else if is_rnbo && matches!(node.object_name.as_str(), "inlet" | "inlet~") {
+            1
         } else {
             node.num_outlets
         };
 
+    // RNBO inlet/outlet boxes always present a single inlet on the host side.
+    let effective_num_inlets = if is_rnbo
+        && matches!(
+            node.object_name.as_str(),
+            "inlet" | "inlet~" | "outlet" | "outlet~"
+        ) {
+        1
+    } else {
+        node.num_inlets
+    };
+
     let mut box_obj = Map::new();
     box_obj.insert("id".into(), json!(ctx.id));
     box_obj.insert("maxclass".into(), json!(maxclass));
-    box_obj.insert("numinlets".into(), json!(node.num_inlets));
+    box_obj.insert("numinlets".into(), json!(effective_num_inlets));
     box_obj.insert("numoutlets".into(), json!(effective_num_outlets));
 
     if !outlettype.is_empty() {
@@ -494,6 +508,44 @@ fn build_box(node: &PatchNode, ctx: &BoxContext) -> Value {
                 "outlet" | "outlet~" => {
                     let idx = ctx.port_index.unwrap_or(0) + 1; // gen~ uses 1-based
                     format!("out {}", idx)
+                }
+                "history" => {
+                    // gen~ history needs an explicit name. If the user didn't
+                    // pass one as a literal first arg, synthesize one from the
+                    // node id (or varname) so the resulting patch is valid.
+                    let first_arg_is_name = node
+                        .args
+                        .first()
+                        .map(|a| a.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_'))
+                        .unwrap_or(false);
+                    let mut t = if first_arg_is_name {
+                        build_object_text(node)
+                    } else {
+                        let name = node.varname.clone().unwrap_or_else(|| {
+                            let suffix =
+                                node.id.trim_start_matches(|c: char| !c.is_ascii_digit());
+                            if suffix.is_empty() {
+                                format!("h_{}", node.id.replace('-', "_"))
+                            } else {
+                                format!("h_{}", suffix)
+                            }
+                        });
+                        if node.args.is_empty() {
+                            format!("history {}", name)
+                        } else {
+                            format!("history {} {}", name, node.args.join(" "))
+                        }
+                    };
+                    if !node.attrs.is_empty() {
+                        let attr_str: String = node
+                            .attrs
+                            .iter()
+                            .map(|(k, v)| format!("@{} {}", k, v))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        t = format!("{} {}", t, attr_str);
+                    }
+                    t
                 }
                 _ => {
                     let mut t = build_object_text(node);

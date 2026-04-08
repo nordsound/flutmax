@@ -347,6 +347,15 @@ impl<'a> GraphBuilder<'a> {
                 // Collect Ref arguments to create edges later
                 let mut ref_connections: Vec<(String, u32, u32)> = Vec::new(); // (source_node, source_outlet, dest_inlet)
 
+                // gen~, mc.gen~ and rnbo~ take a literal first argument
+                // (the subpatcher name) that becomes part of the object text
+                // rather than consuming an inlet. For example,
+                // `gen~("exciter_pluck", vel_sig, brightness)` produces:
+                //   object text: "gen~ exciter_pluck"
+                //   vel_sig → inlet 0, brightness → inlet 1
+                let has_name_arg = matches!(max_name, "gen~" | "mc.gen~" | "rnbo~");
+                let mut lit_count: u32 = 0;
+
                 for (i, arg) in args.iter().enumerate() {
                     // Named argument → resolve inlet index from objdb or AbstractionRegistry;
                     // positional argument → use index directly.
@@ -354,6 +363,9 @@ impl<'a> GraphBuilder<'a> {
                         resolve_inlet_name(max_name, name, self.objdb)
                             .or_else(|| resolve_abstraction_inlet_name(object, name, self.registry))
                             .unwrap_or(i as u32)
+                    } else if has_name_arg {
+                        // Literal name args don't consume inlets, so subtract their count.
+                        (i as u32).saturating_sub(lit_count)
                     } else {
                         i as u32
                     };
@@ -361,6 +373,9 @@ impl<'a> GraphBuilder<'a> {
                     match &arg.value {
                         Expr::Lit(lit) => {
                             lit_args.push(format_lit(lit));
+                            if has_name_arg {
+                                lit_count += 1;
+                            }
                         }
                         Expr::Ref(name) => {
                             let (ref_node_id, ref_outlet) = self
@@ -417,6 +432,14 @@ impl<'a> GraphBuilder<'a> {
                     }
                 }
 
+                // For gen~/mc.gen~/rnbo~, literal name args are part of the object
+                // text rather than inlets, so subtract them from the arg count.
+                let effective_arg_count = if has_name_arg {
+                    (args.len() as u32).saturating_sub(lit_count)
+                } else {
+                    args.len() as u32
+                };
+
                 // Estimate inlet/outlet count
                 let (max_inlet, num_outlets, is_signal) = if let Some(iface) = abstraction_info {
                     // Abstraction: determined from interface
@@ -433,8 +456,8 @@ impl<'a> GraphBuilder<'a> {
                         .map(|(_, _, inlet)| *inlet + 1)
                         .max()
                         .unwrap_or(0);
-                    let from_args = args.len() as u32;
-                    let inlets = std::cmp::max(std::cmp::max(max_from_refs, from_args), num_in);
+                    let inlets =
+                        std::cmp::max(std::cmp::max(max_from_refs, effective_arg_count), num_in);
                     (inlets, num_out, sig)
                 } else {
                     // Normal Max object
@@ -446,9 +469,8 @@ impl<'a> GraphBuilder<'a> {
                             .map(|(_, _, inlet)| *inlet + 1)
                             .max()
                             .unwrap_or(0);
-                        let from_args = args.len() as u32;
                         std::cmp::max(
-                            std::cmp::max(max_from_refs, from_args),
+                            std::cmp::max(max_from_refs, effective_arg_count),
                             infer_num_inlets(max_name, &lit_args, self.objdb),
                         )
                     };
@@ -1214,6 +1236,12 @@ fn infer_num_inlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb>
         "midiin" => 1,
         "midiout" => 1,
         "borax" => 1,
+        // RNBO / gen~ I/O ports
+        "param" => 2,
+        "in~" => 1,
+        "out~" => 1,
+        "inport" => 1,
+        "outport" => 1,
         // Timing / control
         "line" => 2,
         "function" => 2,
@@ -1381,6 +1409,12 @@ fn infer_num_outlets(object_name: &str, args: &[String], objdb: Option<&ObjectDb
         "ctlout" => 0,
         "midiin" => 1,
         "midiout" => 0,
+        // RNBO / gen~ I/O ports
+        "param" => 2,
+        "in~" => 1,
+        "out~" => 0,
+        "inport" => 1,
+        "outport" => 0,
         // Data structures
         "coll" => 4,
         "urn" => 2,
