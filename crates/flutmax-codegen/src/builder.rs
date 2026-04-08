@@ -1595,6 +1595,64 @@ pub fn build_graph_with_objdb(
     Ok(builder.graph)
 }
 
+/// Convert Program (AST) to PatchGraph without auto-inserting triggers.
+///
+/// gen~ executes synchronously per-sample, so triggers are unnecessary.
+/// The trigger object does not exist in the gen~ domain — inserting one
+/// would produce an invalid patch.
+pub fn build_graph_without_triggers(program: &Program) -> Result<PatchGraph, BuildError> {
+    let mut builder = GraphBuilder::new(None, None, None);
+
+    for decl in &program.in_decls {
+        builder.add_inlet(decl);
+    }
+    for decl in &program.out_decls {
+        builder.add_outlet(decl);
+    }
+    for decl in &program.feedback_decls {
+        builder.add_feedback_decl(decl);
+    }
+    for decl in &program.state_decls {
+        builder.add_state_decl(decl)?;
+    }
+    for decl in &program.msg_decls {
+        builder.add_msg(decl);
+    }
+    for wire in &program.wires {
+        builder.add_wire(wire)?;
+    }
+    for dw in &program.destructuring_wires {
+        builder.add_destructuring_wire(dw)?;
+    }
+    for assign in &program.feedback_assignments {
+        builder.add_feedback_assignment(assign)?;
+    }
+    for assign in &program.state_assignments {
+        builder.add_state_assignment(assign)?;
+    }
+    for assign in &program.out_assignments {
+        builder.add_out_assignment(assign)?;
+    }
+    for decl in &program.out_decls {
+        if let Some(ref value) = decl.value {
+            let implicit_assign = OutAssignment {
+                index: decl.index,
+                value: value.clone(),
+                span: None,
+            };
+            builder.add_out_assignment(&implicit_assign)?;
+        }
+    }
+    for conn in &program.direct_connections {
+        builder.add_direct_connection(conn)?;
+    }
+
+    // Skip trigger insertion (gen~ does not need it).
+    assign_edge_orders(&mut builder.graph);
+
+    Ok(builder.graph)
+}
+
 /// Convert Program (AST) to PatchGraph + warnings.
 pub fn build_graph_with_warnings(program: &Program) -> Result<BuildResult, BuildError> {
     build_graph_with_registry_and_warnings(program, None)
