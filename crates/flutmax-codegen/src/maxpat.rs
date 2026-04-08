@@ -522,8 +522,7 @@ fn build_box(node: &PatchNode, ctx: &BoxContext) -> Value {
                         build_object_text(node)
                     } else {
                         let name = node.varname.clone().unwrap_or_else(|| {
-                            let suffix =
-                                node.id.trim_start_matches(|c: char| !c.is_ascii_digit());
+                            let suffix = node.id.trim_start_matches(|c: char| !c.is_ascii_digit());
                             if suffix.is_empty() {
                                 format!("h_{}", node.id.replace('-', "_"))
                             } else {

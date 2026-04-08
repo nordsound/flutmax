@@ -228,7 +228,7 @@ fn fold_range(x: f64, lo: f64, hi: f64) -> f64 {
     let mut v = x - lo;
     // Normalize to [0, range*2)
     let period = range * 2.0;
-    v = v % period;
+    v %= period;
     if v < 0.0 {
         v += period;
     }

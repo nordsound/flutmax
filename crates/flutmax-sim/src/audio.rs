@@ -112,7 +112,7 @@ impl AudioOutput {
                 }
             } else {
                 // Look for a peak: corrs[lag] > corrs[lag-1] && corrs[lag] > corrs[lag+1]
-                if lag + 1 <= max_lag
+                if lag < max_lag
                     && corrs[lag] >= corrs[lag - 1]
                     && corrs[lag] >= corrs[lag + 1]
                     && corrs[lag] > 0.0
