@@ -18,6 +18,10 @@ fn main() {
             let code = flutmax_cli::validate::run(&args[2..]);
             process::exit(code);
         }
+        "sim" => {
+            let code = flutmax_cli::sim::run(&args[2..]);
+            process::exit(code);
+        }
         "--help" | "-h" => {
             print_usage();
             process::exit(0);
@@ -46,6 +50,7 @@ fn print_usage() {
     eprintln!("    flutmax decompile <input.maxpat> -o <output.flutmax>");
     eprintln!("    flutmax decompile --multi <input.maxpat> -o <output.flutmax>");
     eprintln!("    flutmax validate [options] <file.maxpat|file.flutmax>");
+    eprintln!("    flutmax sim [options] <file.maxpat>");
     eprintln!("    flutmax --help");
     eprintln!("    flutmax --version");
     eprintln!();
@@ -53,6 +58,7 @@ fn print_usage() {
     eprintln!("    compile    Transpile .flutmax file(s) to .maxpat file(s)");
     eprintln!("    decompile  Decompile .maxpat file to .flutmax source");
     eprintln!("    validate   Validate a .maxpat file (static + optional Max runtime)");
+    eprintln!("    sim        Run .maxpat through DSP simulator and assert audio properties");
     eprintln!();
     eprintln!("OPTIONS:");
     eprintln!("    -o <path>      Output file or directory path (required for compile/decompile)");

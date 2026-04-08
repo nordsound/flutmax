@@ -18,7 +18,9 @@ flutmax-codegen = { version = "0.1.0", path = "../flutmax-codegen" }
 flutmax-objdb = { version = "0.1.0", path = "../flutmax-objdb" }
 flutmax-validate = { version = "0.1.0", path = "../flutmax-validate" }
 flutmax-decompile = { version = "0.1.0", path = "../flutmax-decompile" }
+flutmax-sim = { version = "0.1.0", path = "../flutmax-sim" }
 serde_json = "1"
 
 [dev-dependencies]
 serde_json = "1"
+tempfile = "3"

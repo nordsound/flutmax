@@ -1,3 +1,4 @@
+pub mod sim;
 pub mod validate;
 
 use flutmax_codegen::{
