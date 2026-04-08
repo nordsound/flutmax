@@ -1,0 +1,11 @@
+[package]
+name = "flutmax-sim"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/euskace/flutmax"
+description = "gen~ and RNBO DSP simulator for automated audio testing without Max"
+
+[dependencies]
+serde_json = "1"
+rand = "0.8"

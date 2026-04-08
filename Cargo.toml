@@ -10,6 +10,7 @@ members = [
     "crates/flutmax-cli",
     "crates/flutmax-lsp",
     "crates/flutmax",
+    "crates/flutmax-sim",
 ]
 exclude = ["bindings/wasm"]
 resolver = "2"
