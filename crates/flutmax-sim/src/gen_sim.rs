@@ -35,9 +35,6 @@ struct SimNode {
     input_sources: Vec<Option<(usize, usize)>>,
     num_outlets: usize,
     arg: Option<f64>,
-    /// Original box ID from the JSON (for wiring).
-    #[allow(dead_code)]
-    box_id: String,
 }
 
 /// Tracks which history/delay nodes need back-edge updates.
@@ -68,6 +65,13 @@ impl GenSimulator {
         let root: Value =
             serde_json::from_str(json).map_err(|e| SimError::JsonParse(e.to_string()))?;
         Self::from_value(&root)
+    }
+
+    /// Build a GenSimulator from a gen~ patcher JSON string with a specific sample rate.
+    pub fn from_json_with_sr(json: &str, sample_rate: f64) -> Result<Self, SimError> {
+        let root: Value =
+            serde_json::from_str(json).map_err(|e| SimError::JsonParse(e.to_string()))?;
+        Self::from_value_with_sr(&root, sample_rate)
     }
 
     /// Build a GenSimulator from a parsed JSON Value.
@@ -171,17 +175,8 @@ impl GenSimulator {
             }
         }
 
-        // Kahn's algorithm
-        let mut in_degree: Vec<usize> = vec![0; n];
-        for deps in &forward_deps {
-            for _ in deps {
-                // Each dependency increments in_degree... wait, we need outgoing edges
-            }
-        }
-        // Recompute: in_degree[i] = number of forward dependencies of node i
-        for (i, deps) in forward_deps.iter().enumerate() {
-            in_degree[i] = deps.len();
-        }
+        // Kahn's algorithm: in_degree[i] = number of forward dependencies of node i
+        let mut in_degree: Vec<usize> = forward_deps.iter().map(|deps| deps.len()).collect();
 
         // Build reverse adjacency: who depends on me?
         let mut dependents: Vec<Vec<usize>> = vec![Vec::new(); n];
@@ -212,8 +207,9 @@ impl GenSimulator {
         // If not all nodes sorted, there may be cycles not broken by history/delay
         // Add remaining nodes (shouldn't happen in well-formed gen~ patches)
         if sorted.len() < n {
+            let already_sorted: HashSet<usize> = sorted.iter().copied().collect();
             for i in 0..n {
-                if !sorted.contains(&i) {
+                if !already_sorted.contains(&i) {
                     sorted.push(i);
                 }
             }
@@ -232,7 +228,7 @@ impl GenSimulator {
         let mut states: Vec<NodeState> = Vec::with_capacity(n);
 
         for &old_idx in &sorted {
-            let (ref id, ref op, arg) = raw_nodes[old_idx];
+            let (_, ref op, arg) = raw_nodes[old_idx];
 
             // Track I/O counts
             match op {
@@ -262,7 +258,6 @@ impl GenSimulator {
                 input_sources,
                 num_outlets: outlets,
                 arg,
-                box_id: id.clone(),
             });
         }
 

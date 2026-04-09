@@ -3,7 +3,7 @@ name = "flutmax-sim"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/euskace/flutmax"
+repository = "https://github.com/nordsound/flutmax"
 description = "gen~ and RNBO DSP simulator for automated audio testing without Max"
 
 [dependencies]

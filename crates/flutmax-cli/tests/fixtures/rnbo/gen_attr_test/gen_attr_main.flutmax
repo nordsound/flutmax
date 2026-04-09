@@ -1,0 +1,2 @@
+wire synth = rnbo~("gen_attr_voice");
+wire dac = ezdac~(synth.out[0], synth.out[1]);

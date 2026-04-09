@@ -1,0 +1,7 @@
+out 0 (audio_l): signal;
+out 1 (audio_r): signal;
+
+wire osc = cycle~(440);
+wire processed = gen~("attr_gen", osc).attr(history: 1);
+out[0] = processed;
+out[1] = processed;

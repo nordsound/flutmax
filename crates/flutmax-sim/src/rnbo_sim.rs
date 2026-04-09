@@ -40,18 +40,12 @@ struct RnboNode {
     input_sources: Vec<Option<(usize, usize)>>,
     num_outlets: usize,
     arg: Option<f64>,
-    #[allow(dead_code)]
-    box_id: String,
 }
 
 /// Parameter state.
 #[derive(Debug, Clone)]
 struct ParamState {
     value: f64,
-    #[allow(dead_code)]
-    min: f64,
-    #[allow(dead_code)]
-    max: f64,
 }
 
 /// RNBO simulator.
@@ -59,25 +53,25 @@ pub struct RnboSimulator {
     nodes: Vec<RnboNode>,
     node_outputs: Vec<Vec<f64>>,
     gen_sims: HashMap<String, GenSimulator>,
-    /// Map from param name → param node index.
-    #[allow(dead_code)]
-    param_indices: HashMap<String, usize>,
     params: HashMap<String, ParamState>,
     midi_state: MidiState,
     signal_inputs: Vec<f64>,
     signal_outputs: Vec<f64>,
     sample_rate: f64,
-    #[allow(dead_code)]
-    num_signal_inputs: usize,
     num_signal_outputs: usize,
 }
 
 impl RnboSimulator {
-    /// Build an RnboSimulator from RNBO patcher JSON.
+    /// Build an RnboSimulator from RNBO patcher JSON (defaults to 44100 Hz).
     pub fn from_json(json: &str) -> Result<Self, SimError> {
+        Self::from_json_with_sr(json, 44100.0)
+    }
+
+    /// Build an RnboSimulator from RNBO patcher JSON with a specific sample rate.
+    pub fn from_json_with_sr(json: &str, sample_rate: f64) -> Result<Self, SimError> {
         let root: Value =
             serde_json::from_str(json).map_err(|e| SimError::JsonParse(e.to_string()))?;
-        Self::from_value(&root, 44100.0)
+        Self::from_value(&root, sample_rate)
     }
 
     /// Build from a JSON Value with a given sample rate.
@@ -99,10 +93,9 @@ impl RnboSimulator {
 
         // Phase 1: Parse boxes
         let mut box_map: HashMap<String, usize> = HashMap::new();
-        let mut raw_nodes: Vec<(String, RnboOp, Option<f64>)> = Vec::new();
+        let mut raw_nodes: Vec<(RnboOp, Option<f64>)> = Vec::new();
         let mut gen_sims: HashMap<String, GenSimulator> = HashMap::new();
         let mut params: HashMap<String, ParamState> = HashMap::new();
-        let mut param_indices: HashMap<String, usize> = HashMap::new();
 
         for box_val in boxes {
             let bx = box_val.get("box").unwrap_or(box_val);
@@ -135,23 +128,12 @@ impl RnboSimulator {
             // Handle param
             if let RnboOp::Param(ref name) = op {
                 let default = arg.unwrap_or(0.0);
-                let min = parse_attr_f64(bx, "minimum", 0.0);
-                let max = parse_attr_f64(bx, "maximum", 1.0);
-                params.insert(
-                    name.clone(),
-                    ParamState {
-                        value: default,
-                        min,
-                        max,
-                    },
-                );
-                let idx = raw_nodes.len();
-                param_indices.insert(name.clone(), idx);
+                params.insert(name.clone(), ParamState { value: default });
             }
 
             let idx = raw_nodes.len();
-            box_map.insert(id.clone(), idx);
-            raw_nodes.push((id, op, arg));
+            box_map.insert(id, idx);
+            raw_nodes.push((op, arg));
         }
 
         let n = raw_nodes.len();
@@ -215,10 +197,11 @@ impl RnboSimulator {
             }
         }
 
-        // Add any remaining (shouldn't happen)
+        // Add any remaining (shouldn't happen in well-formed RNBO patches)
         if sorted.len() < n {
+            let already_sorted: HashSet<usize> = sorted.iter().copied().collect();
             for i in 0..n {
-                if !sorted.contains(&i) {
+                if !already_sorted.contains(&i) {
                     sorted.push(i);
                 }
             }
@@ -236,7 +219,7 @@ impl RnboSimulator {
         let mut sim_nodes: Vec<RnboNode> = Vec::with_capacity(n);
 
         for &old_idx in &sorted {
-            let (ref id, ref op, arg) = raw_nodes[old_idx];
+            let (ref op, arg) = raw_nodes[old_idx];
 
             match op {
                 RnboOp::SignalIn(idx) => num_signal_inputs = num_signal_inputs.max(*idx + 1),
@@ -265,15 +248,8 @@ impl RnboSimulator {
                 input_sources,
                 num_outlets,
                 arg,
-                box_id: id.clone(),
             });
         }
-
-        // Remap param_indices
-        let remapped_params: HashMap<String, usize> = param_indices
-            .iter()
-            .map(|(name, &old_idx)| (name.clone(), old_to_new[old_idx]))
-            .collect();
 
         let node_outputs: Vec<Vec<f64>> =
             sim_nodes.iter().map(|n| vec![0.0; n.num_outlets]).collect();
@@ -282,13 +258,11 @@ impl RnboSimulator {
             nodes: sim_nodes,
             node_outputs,
             gen_sims,
-            param_indices: remapped_params,
             params,
             midi_state: MidiState::new(),
             signal_inputs: vec![0.0; num_signal_inputs],
             signal_outputs: vec![0.0; num_signal_outputs],
             sample_rate,
-            num_signal_inputs,
             num_signal_outputs,
         })
     }
@@ -540,11 +514,6 @@ fn parse_attr_str(text: &str, key: &str) -> Option<String> {
         }
     }
     None
-}
-
-/// Parse a numeric attribute from a JSON box object.
-fn parse_attr_f64(box_val: &Value, key: &str, default: f64) -> f64 {
-    box_val.get(key).and_then(|v| v.as_f64()).unwrap_or(default)
 }
 
 #[cfg(test)]

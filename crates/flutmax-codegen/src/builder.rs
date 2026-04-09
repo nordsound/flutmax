@@ -1541,6 +1541,15 @@ pub fn build_graph_with_code_files(
     build_graph_with_objdb(program, registry, code_files, None)
 }
 
+/// Build options shared by the various `build_graph_*` entry points.
+#[derive(Debug, Clone, Copy, Default)]
+struct BuildOptions {
+    /// When true, the trigger auto-insertion pass is skipped. This is required
+    /// for the gen~ domain, which executes synchronously per-sample and has
+    /// no `trigger` object.
+    skip_triggers: bool,
+}
+
 /// Convert Program (AST) to PatchGraph (with all parameters).
 ///
 /// When `objdb` is `Some`, `infer_num_inlets`/`infer_num_outlets`
@@ -1550,6 +1559,42 @@ pub fn build_graph_with_objdb(
     registry: Option<&AbstractionRegistry>,
     code_files: Option<&CodeFiles>,
     objdb: Option<&ObjectDb>,
+) -> Result<PatchGraph, BuildError> {
+    build_graph_inner(
+        program,
+        registry,
+        code_files,
+        objdb,
+        BuildOptions::default(),
+    )
+}
+
+/// Convert Program (AST) to PatchGraph without auto-inserting triggers.
+///
+/// gen~ executes synchronously per-sample, so triggers are unnecessary.
+/// The trigger object does not exist in the gen~ domain — inserting one
+/// would produce an invalid patch.
+pub fn build_graph_without_triggers(program: &Program) -> Result<PatchGraph, BuildError> {
+    build_graph_inner(
+        program,
+        None,
+        None,
+        None,
+        BuildOptions {
+            skip_triggers: true,
+        },
+    )
+}
+
+/// Shared implementation behind `build_graph_with_objdb` and
+/// `build_graph_without_triggers`. Walks the program in declaration order,
+/// optionally inserts triggers, then assigns edge order.
+fn build_graph_inner(
+    program: &Program,
+    registry: Option<&AbstractionRegistry>,
+    code_files: Option<&CodeFiles>,
+    objdb: Option<&ObjectDb>,
+    options: BuildOptions,
 ) -> Result<PatchGraph, BuildError> {
     let mut builder = GraphBuilder::new(registry, code_files, objdb);
 
@@ -1620,68 +1665,12 @@ pub fn build_graph_with_objdb(
         builder.add_direct_connection(conn)?;
     }
 
-    // 5. Auto-insert triggers
-    insert_triggers(&mut builder.graph);
+    // 5. Auto-insert triggers (skipped for the gen~ domain).
+    if !options.skip_triggers {
+        insert_triggers(&mut builder.graph);
+    }
 
     // 6. Assign order to fanout edges
-    assign_edge_orders(&mut builder.graph);
-
-    Ok(builder.graph)
-}
-
-/// Convert Program (AST) to PatchGraph without auto-inserting triggers.
-///
-/// gen~ executes synchronously per-sample, so triggers are unnecessary.
-/// The trigger object does not exist in the gen~ domain — inserting one
-/// would produce an invalid patch.
-pub fn build_graph_without_triggers(program: &Program) -> Result<PatchGraph, BuildError> {
-    let mut builder = GraphBuilder::new(None, None, None);
-
-    for decl in &program.in_decls {
-        builder.add_inlet(decl);
-    }
-    for decl in &program.out_decls {
-        builder.add_outlet(decl);
-    }
-    for decl in &program.feedback_decls {
-        builder.add_feedback_decl(decl);
-    }
-    for decl in &program.state_decls {
-        builder.add_state_decl(decl)?;
-    }
-    for decl in &program.msg_decls {
-        builder.add_msg(decl);
-    }
-    for wire in &program.wires {
-        builder.add_wire(wire)?;
-    }
-    for dw in &program.destructuring_wires {
-        builder.add_destructuring_wire(dw)?;
-    }
-    for assign in &program.feedback_assignments {
-        builder.add_feedback_assignment(assign)?;
-    }
-    for assign in &program.state_assignments {
-        builder.add_state_assignment(assign)?;
-    }
-    for assign in &program.out_assignments {
-        builder.add_out_assignment(assign)?;
-    }
-    for decl in &program.out_decls {
-        if let Some(ref value) = decl.value {
-            let implicit_assign = OutAssignment {
-                index: decl.index,
-                value: value.clone(),
-                span: None,
-            };
-            builder.add_out_assignment(&implicit_assign)?;
-        }
-    }
-    for conn in &program.direct_connections {
-        builder.add_direct_connection(conn)?;
-    }
-
-    // Skip trigger insertion (gen~ does not need it).
     assign_edge_orders(&mut builder.graph);
 
     Ok(builder.graph)

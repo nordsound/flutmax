@@ -358,27 +358,54 @@ fn parse_comparison(s: &str) -> Result<Comparison, String> {
 }
 
 fn detect_mode(json: &str) -> SimMode {
-    // Look for "classnamespace": "rnbo" or "dsp.gen"
-    if json.contains("\"classnamespace\": \"dsp.gen\"")
-        || json.contains("\"classnamespace\":\"dsp.gen\"")
-    {
-        // Check if it's nested inside an rnbo patcher
-        if json.contains("\"classnamespace\": \"rnbo\"")
-            || json.contains("\"classnamespace\":\"rnbo\"")
-        {
-            SimMode::Rnbo
-        } else {
-            SimMode::Gen
+    // Parse the JSON once and inspect classnamespace fields directly. Falls
+    // back to RNBO mode for top-level patchers (which contain `rnbo~` /
+    // `gen~` boxes but typically no top-level classnamespace).
+    let value: serde_json::Value = match serde_json::from_str(json) {
+        Ok(v) => v,
+        Err(_) => return SimMode::Rnbo,
+    };
+    let top_ns = value
+        .pointer("/patcher/classnamespace")
+        .and_then(|v| v.as_str());
+
+    match top_ns {
+        Some("rnbo") => SimMode::Rnbo,
+        Some("dsp.gen") => {
+            // A standalone gen~ patch unless it is somehow nested inside an
+            // rnbo patcher (rare in practice but handle it).
+            if patcher_contains_rnbo_namespace(&value) {
+                SimMode::Rnbo
+            } else {
+                SimMode::Gen
+            }
         }
-    } else if json.contains("\"classnamespace\": \"rnbo\"")
-        || json.contains("\"classnamespace\":\"rnbo\"")
-    {
-        SimMode::Rnbo
-    } else {
-        // Top-level patcher with rnbo~ or gen~ box embedded
-        // Default to RNBO for friendliness
-        SimMode::Rnbo
+        _ => SimMode::Rnbo,
     }
+}
+
+/// Recursively walk a patcher tree and return true if any nested
+/// `classnamespace` field equals `"rnbo"`.
+fn patcher_contains_rnbo_namespace(value: &serde_json::Value) -> bool {
+    fn walk(v: &serde_json::Value) -> bool {
+        if let Some(ns) = v.get("classnamespace").and_then(|n| n.as_str()) {
+            if ns == "rnbo" {
+                return true;
+            }
+        }
+        if let Some(boxes) = v.get("boxes").and_then(|b| b.as_array()) {
+            for b in boxes {
+                let inner = b.get("box").unwrap_or(b);
+                if let Some(p) = inner.get("patcher") {
+                    if walk(p) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+    value.get("patcher").map(walk).unwrap_or(false)
 }
 
 fn run_rnbo(
@@ -387,10 +414,10 @@ fn run_rnbo(
     note_on: &[(u8, u8)],
     note_off: &[u8],
     signal_input: Option<f64>,
-    _sample_rate: f64,
+    sample_rate: f64,
     duration: f64,
 ) -> Result<AudioOutput, String> {
-    let mut sim = RnboSimulator::from_json(json)
+    let mut sim = RnboSimulator::from_json_with_sr(json, sample_rate)
         .map_err(|e| format!("RnboSimulator parse error: {:?}", e))?;
 
     for (name, value) in params {
@@ -404,9 +431,9 @@ fn run_rnbo(
         sim.send_note_off(n);
     }
 
-    if let Some(_v) = signal_input {
-        // RnboSimulator may have set_signal_input; if not, skip
-        // Note: this requires set_signal_input to exist on RnboSimulator
+    // CLI exposes a single scalar; apply it to signal input 0.
+    if let Some(v) = signal_input {
+        sim.set_signal_input(0, v);
     }
 
     Ok(sim.run_seconds(duration))
@@ -416,11 +443,11 @@ fn run_gen(
     json: &str,
     params: &[(String, f64)],
     signal_input: Option<f64>,
-    _sample_rate: f64,
+    sample_rate: f64,
     duration: f64,
 ) -> Result<AudioOutput, String> {
-    let mut sim =
-        GenSimulator::from_json(json).map_err(|e| format!("GenSimulator parse error: {:?}", e))?;
+    let mut sim = GenSimulator::from_json_with_sr(json, sample_rate)
+        .map_err(|e| format!("GenSimulator parse error: {:?}", e))?;
 
     // For gen~, params are positional inputs (in 1, in 2, ...)
     // params named "in1", "in2", etc., map to indices
@@ -438,16 +465,7 @@ fn run_gen(
         sim.set_input(0, v);
     }
 
-    let n = (duration * 48000.0) as usize;
-    let mut samples = Vec::with_capacity(n);
-    for _ in 0..n {
-        sim.process_sample();
-        samples.push(sim.get_outputs().first().copied().unwrap_or(0.0));
-    }
-    Ok(AudioOutput {
-        channels: vec![samples],
-        sample_rate: 48000.0,
-    })
+    Ok(sim.run_seconds(duration))
 }
 
 fn check_assertion(assertion: &Assertion, output: &AudioOutput) -> Result<(), String> {
@@ -494,11 +512,175 @@ fn check_cmp(name: &str, value: f64, cmp: &Comparison) -> Result<(), String> {
         Comparison::Gte(t) => (value >= *t, ">=", *t),
         Comparison::Lt(t) => (value < *t, "<", *t),
         Comparison::Lte(t) => (value <= *t, "<=", *t),
-        Comparison::Eq(t) => ((value - t).abs() < 1e-9, "=", *t),
+        Comparison::Eq(t) => {
+            // Peak/RMS values from a multi-thousand-sample DSP run rarely match
+            // a target to floating-point exactness. Use an absolute tolerance of
+            // 1e-6 with a 1e-4 relative tolerance for larger targets (e.g.
+            // frequencies in Hz).
+            let tol = 1e-6_f64.max(t.abs() * 1e-4);
+            ((value - t).abs() <= tol, "=", *t)
+        }
     };
     if passed {
         Ok(())
     } else {
         Err(format!("{} {:.6} not {} {}", name, value, op_str, target))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_eq_passes_within_relative_tolerance() {
+        // 0.5 vs 0.50001 — the old 1e-9 tolerance would fail here.
+        assert!(check_cmp("peak", 0.500_01, &Comparison::Eq(0.5)).is_ok());
+    }
+
+    #[test]
+    fn test_eq_fails_outside_tolerance() {
+        // 0.5 vs 0.6 — clearly not equal, must fail.
+        assert!(check_cmp("peak", 0.6, &Comparison::Eq(0.5)).is_err());
+    }
+
+    #[test]
+    fn test_eq_freq_within_relative_tolerance() {
+        // Larger targets such as a frequency estimate: 440 Hz vs 440.04 Hz is in range.
+        assert!(check_cmp("freq", 440.04, &Comparison::Eq(440.0)).is_ok());
+        // 440 vs 441 is out of range.
+        assert!(check_cmp("freq", 441.0, &Comparison::Eq(440.0)).is_err());
+    }
+
+    #[test]
+    fn test_eq_zero_target_uses_absolute_tolerance() {
+        // When the target is 0 the relative tolerance vanishes; fall back to absolute 1e-6.
+        assert!(check_cmp("rms", 1e-7, &Comparison::Eq(0.0)).is_ok());
+        assert!(check_cmp("rms", 1e-3, &Comparison::Eq(0.0)).is_err());
+    }
+
+    /// Verify that running a gen~ patch with `--sample-rate` produces an
+    /// `AudioOutput.sample_rate` and sample count that match the request.
+    ///
+    /// Regression test for F1: the previous implementation hard-coded 48000.0,
+    /// so passing any other value left the output `sample_rate` unchanged.
+    #[test]
+    fn test_run_gen_honors_sample_rate() {
+        // Pass-through gen~ patch: in 1 → out 1
+        let json = r#"{
+            "patcher": {
+                "boxes": [
+                    {"box": {"id": "a", "text": "in 1"}},
+                    {"box": {"id": "b", "text": "out 1"}}
+                ],
+                "lines": [
+                    {"patchline": {"source": ["a", 0], "destination": ["b", 0]}}
+                ]
+            }
+        }"#;
+
+        // 32000 Hz x 0.1s = 3200 samples
+        let out = run_gen(json, &[], None, 32000.0, 0.1).expect("run_gen");
+        assert!(
+            (out.sample_rate - 32000.0).abs() < 1e-9,
+            "sample_rate mismatch: {}",
+            out.sample_rate
+        );
+        assert_eq!(out.channels[0].len(), 3200);
+
+        // 96000 Hz x 0.1s = 9600 samples
+        let out = run_gen(json, &[], None, 96000.0, 0.1).expect("run_gen");
+        assert!((out.sample_rate - 96000.0).abs() < 1e-9);
+        assert_eq!(out.channels[0].len(), 9600);
+    }
+
+    /// Verify the RNBO simulator also honours `--sample-rate`.
+    #[test]
+    fn test_run_rnbo_honors_sample_rate() {
+        // Minimal RNBO patch: param val 1.0 → out~ 1
+        let json = r#"{
+            "patcher": {
+                "classnamespace": "rnbo",
+                "boxes": [
+                    {"box": {"id": "p", "maxclass": "newobj", "text": "param val 1.0"}},
+                    {"box": {"id": "o", "maxclass": "newobj", "text": "out~ 1"}}
+                ],
+                "lines": [
+                    {"patchline": {"source": ["p", 0], "destination": ["o", 0]}}
+                ]
+            }
+        }"#;
+
+        let out = run_rnbo(json, &[], &[], &[], None, 32000.0, 0.1).expect("run_rnbo");
+        assert!((out.sample_rate - 32000.0).abs() < 1e-9);
+        assert_eq!(out.channels[0].len(), 3200);
+    }
+
+    /// `detect_mode` should distinguish gen~, RNBO, and top-level patches by
+    /// parsing the JSON rather than substring-matching the raw text. F4
+    /// regression test.
+    #[test]
+    fn test_detect_mode_gen() {
+        let json = r#"{"patcher": {"classnamespace": "dsp.gen", "boxes": [], "lines": []}}"#;
+        assert!(matches!(detect_mode(json), SimMode::Gen));
+    }
+
+    #[test]
+    fn test_detect_mode_rnbo() {
+        let json = r#"{"patcher": {"classnamespace": "rnbo", "boxes": [], "lines": []}}"#;
+        assert!(matches!(detect_mode(json), SimMode::Rnbo));
+    }
+
+    #[test]
+    fn test_detect_mode_top_level_defaults_to_rnbo() {
+        let json = r#"{"patcher": {"boxes": [], "lines": []}}"#;
+        assert!(matches!(detect_mode(json), SimMode::Rnbo));
+    }
+
+    #[test]
+    fn test_detect_mode_ignores_string_field_collisions() {
+        // The phrase "classnamespace": "dsp.gen" appears here only inside a
+        // string-literal text field of a comment box, not as the patcher's
+        // own classnamespace. The old substring-based detection would have
+        // mis-classified this as Gen mode.
+        let json = r#"{
+            "patcher": {
+                "classnamespace": "rnbo",
+                "boxes": [
+                    {"box": {"id": "c", "maxclass": "comment",
+                             "text": "see \"classnamespace\": \"dsp.gen\" docs"}}
+                ],
+                "lines": []
+            }
+        }"#;
+        assert!(matches!(detect_mode(json), SimMode::Rnbo));
+    }
+
+    /// Verify `--signal-input` actually reaches `in~` in RNBO mode (F2).
+    #[test]
+    fn test_run_rnbo_applies_signal_input() {
+        // in~ 1 → * 2 → out~ 1
+        let json = r#"{
+            "patcher": {
+                "classnamespace": "rnbo",
+                "boxes": [
+                    {"box": {"id": "i", "maxclass": "newobj", "text": "in~ 1"}},
+                    {"box": {"id": "m", "maxclass": "newobj", "text": "* 2"}},
+                    {"box": {"id": "o", "maxclass": "newobj", "text": "out~ 1"}}
+                ],
+                "lines": [
+                    {"patchline": {"source": ["i", 0], "destination": ["m", 0]}},
+                    {"patchline": {"source": ["m", 0], "destination": ["o", 0]}}
+                ]
+            }
+        }"#;
+
+        let out = run_rnbo(json, &[], &[], &[], Some(0.3), 44100.0, 0.001).expect("run_rnbo");
+        // 0.3 input * 2 = 0.6 should appear at out~
+        assert!(
+            (out.channels[0][0] - 0.6).abs() < 1e-9,
+            "expected 0.6, got {}",
+            out.channels[0][0]
+        );
     }
 }

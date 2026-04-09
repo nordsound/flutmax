@@ -544,3 +544,82 @@ fn test_rnbo_polyphony_attr() {
     assert!(rnbo_box.get("outletInfo").is_some());
     assert!(rnbo_box["numinlets"].as_u64().unwrap_or(0) >= 2);
 }
+
+/// Verify that two `rnbo~` instances embedded in the same compile pass receive
+/// distinct `saved_object_attributes.uuid` values.
+///
+/// Regression test for F3: the previous implementation built UUIDs from
+/// `SystemTime::now()` nanoseconds, which could collide for consecutive boxes.
+#[test]
+fn test_rnbo_uuids_are_unique_within_compile_pass() {
+    use std::collections::HashSet;
+
+    let (_dir, results) = compile_rnbo_fixture("multi_rnbo_test");
+    let main_json = results
+        .get("multi_main")
+        .expect("multi_main.maxpat not generated");
+
+    // Collect every rnbo~ box's uuid in the top-level patcher.
+    let rnbo_boxes = find_boxes(&main_json["patcher"], |t| {
+        t == "rnbo~" || t.starts_with("rnbo~ @")
+    });
+    assert_eq!(
+        rnbo_boxes.len(),
+        2,
+        "fixture should produce two rnbo~ boxes"
+    );
+
+    let uuids: Vec<&str> = rnbo_boxes
+        .iter()
+        .map(|b| {
+            b["saved_object_attributes"]["uuid"]
+                .as_str()
+                .expect("rnbo~ should have a uuid")
+        })
+        .collect();
+
+    let unique: HashSet<&str> = uuids.iter().copied().collect();
+    assert_eq!(
+        unique.len(),
+        uuids.len(),
+        "rnbo~ uuids should be distinct, got: {:?}",
+        uuids
+    );
+}
+
+/// Verify that `.attr()` applied to a gen~ call survives the embedding pass
+/// inside the resulting RNBO patcher's box text.
+///
+/// Regression test for F5: the previous implementation overwrote the text with
+/// `gen~ @title <name>` and silently dropped user-supplied attrs such as
+/// `@history 1`.
+#[test]
+fn test_rnbo_gen_embed_preserves_attrs() {
+    let (_dir, results) = compile_rnbo_fixture("gen_attr_test");
+
+    let voice_json = results
+        .get("gen_attr_voice")
+        .expect("gen_attr_voice.maxpat not generated");
+
+    // gen_attr_voice.maxpat is itself the RNBO patcher (it has no enclosing
+    // rnbo~ box; the gen~ box sits directly under /patcher/boxes).
+    let gen_boxes = find_boxes(&voice_json["patcher"], |t| t.starts_with("gen~ @title"));
+    assert_eq!(
+        gen_boxes.len(),
+        1,
+        "should have exactly 1 gen~ box in gen_attr_voice"
+    );
+
+    // The text must carry both @title and the user's @history attribute.
+    let text = gen_boxes[0]["text"].as_str().unwrap_or("");
+    assert!(
+        text.contains("@title attr_gen"),
+        "gen~ text should contain '@title attr_gen', got: '{}'",
+        text
+    );
+    assert!(
+        text.contains("@history 1"),
+        "gen~ text should preserve user-supplied '@history 1' attr, got: '{}'",
+        text
+    );
+}

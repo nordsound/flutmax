@@ -175,7 +175,13 @@ fn run_compile_single(
     }
 
     if rnbo_mode {
-        // RNBO mode: use compile_rnbo() with rnbo classnamespace
+        // RNBO mode: use compile_rnbo() with rnbo classnamespace.
+        //
+        // Note: this branch deliberately bypasses load_code_files() and
+        // load_ui_data(). RNBO patchers do not host .js / .genexpr code
+        // files (RNBO uses its own DSL), and the .uiflutmax sidecar is a
+        // top-level patcher concern. Files placed alongside an RNBO source
+        // are silently ignored. Revisit if RNBO ever needs UI sidecars.
         let json = match flutmax_cli::compile_rnbo(&source) {
             Ok(j) => j,
             Err(e) => {
@@ -566,8 +572,12 @@ fn run_compile_directory(
     // 7. Post-process: embed subpatchers (gen~ into RNBO, RNBO into top-level)
     embed_subpatchers(&mut compiled, &auto_gen_files, &auto_rnbo_files);
 
-    // 8. Write each .maxpat
-    for (stem, json) in &compiled {
+    // 8. Write each .maxpat in a deterministic (stem-sorted) order so the
+    //    compile log and file timestamps are reproducible across runs.
+    let mut stems: Vec<&String> = compiled.keys().collect();
+    stems.sort();
+    for stem in stems {
+        let json = &compiled[stem];
         let output_file = Path::new(output_dir).join(format!("{}.maxpat", stem));
         let output_str = output_file.to_string_lossy().to_string();
         write_output(&output_str, json);
@@ -743,15 +753,19 @@ fn collect_rnbo_refs_from_expr(expr: &flutmax_ast::Expr, rnbo_files: &mut HashSe
     }
 }
 
-/// Generate a simple UUID-like string for RNBO saved_object_attributes.
+/// Generate a UUID-v4-like string for RNBO saved_object_attributes.
+///
+/// Uses 128 bits of randomness so concurrent calls within the same compile pass
+/// produce distinct values. The output sets the version (4) and variant (RFC 4122)
+/// nibbles so Max accepts the value as a valid UUID.
 fn generate_uuid() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    // Format as UUID-like: 8-4-4-4-12 hex
-    let hex = format!("{:032x}", ts);
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    // RFC 4122: version 4, variant 10xx
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
     format!(
         "{}-{}-{}-{}-{}",
         &hex[0..8],
@@ -780,8 +794,14 @@ fn embed_subpatchers(
         }
     }
 
-    // Phase 5: Embed gen~ patchers into RNBO patchers
-    // For each RNBO file, find gen~ boxes and embed the compiled gen~ patcher
+    // Phase 5: Embed gen~ patchers into RNBO patchers.
+    // For each RNBO file, find gen~ boxes and embed the compiled gen~ patcher.
+    //
+    // Note: this only walks the RNBO patcher's top-level `/patcher/boxes`. A
+    // gen~ nested inside a Max subpatcher (e.g. inside a `[p group]` box) is
+    // not embedded. flutmax does not currently emit nested subpatchers, so the
+    // limitation is theoretical for now; revisit if/when nested subpatchers
+    // become a supported feature.
     let rnbo_stems: Vec<String> = rnbo_refs.iter().cloned().collect();
     let gen_values: HashMap<String, Value> = gen_refs
         .iter()
@@ -805,13 +825,22 @@ fn embed_subpatchers(
                         // Match "gen~ <name>" or "gen~ <name> @attr ..." pattern
                         if let Some(gen_rest) = text.strip_prefix("gen~ ") {
                             let gen_name = gen_rest.split_whitespace().next().unwrap_or(gen_rest);
+                            // Preserve any @attributes the user specified after the name,
+                            // mirroring the rnbo~ branch below.
+                            let gen_attrs =
+                                gen_rest.find('@').map(|i| &gen_rest[i..]).unwrap_or("");
                             if let Some(gen_json) = gen_values.get(gen_name) {
                                 // Embed gen~ patcher
                                 if let Some(gen_patcher) = gen_json.get("patcher") {
                                     box_obj["patcher"] = gen_patcher.clone();
                                 }
-                                // Update text to use @title attribute
-                                box_obj["text"] = json!(format!("gen~ @title {}", gen_name));
+                                // Update text to use @title attribute, preserving user attrs
+                                let new_text = if gen_attrs.is_empty() {
+                                    format!("gen~ @title {}", gen_name)
+                                } else {
+                                    format!("gen~ @title {} {}", gen_name, gen_attrs)
+                                };
+                                box_obj["text"] = json!(new_text);
                                 // Add RNBO-specific attributes
                                 box_obj["rnbo_classname"] = json!("gen~");
                                 let box_id = box_obj
@@ -912,12 +941,26 @@ fn embed_subpatchers(
                                     box_obj["text"] = json!(format!("rnbo~ {}", rnbo_attrs));
                                 }
 
-                                // Add saved_object_attributes
+                                // Add saved_object_attributes. These three keys
+                                // are what Max writes for a top-level rnbo~
+                                // instance saved from the editor:
+                                //   - "optimization": "O1" — RNBO compiler
+                                //     optimisation level (O0/O1/O2/O3). O1
+                                //     matches Max's default for new patches.
+                                //   - "parameter_enable": 1 — exposes the
+                                //     RNBO parameters via the Max parameter
+                                //     system (required for `set <name>` etc.).
+                                //   - "uuid" — stable per-instance identifier;
+                                //     must be unique within the host patch
+                                //     (see generate_uuid).
                                 box_obj["saved_object_attributes"] = json!({
                                     "optimization": "O1",
                                     "parameter_enable": 1,
                                     "uuid": generate_uuid()
                                 });
+                                // "autosave": 1 tells Max to embed the rnbo~
+                                // patcher contents in the host .maxpat rather
+                                // than referencing an external file.
                                 box_obj["autosave"] = json!(1);
                             }
                         }
