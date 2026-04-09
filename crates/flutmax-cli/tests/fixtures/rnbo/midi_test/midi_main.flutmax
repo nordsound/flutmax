@@ -1,0 +1,4 @@
+wire midi = midiin();
+wire synth = rnbo~("midi_voice");
+synth.in[1] = midi;
+wire dac = ezdac~(synth.out[0], synth.out[1]);

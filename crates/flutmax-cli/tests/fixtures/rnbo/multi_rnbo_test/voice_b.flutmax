@@ -1,0 +1,5 @@
+out 0 (audio): signal;
+
+wire osc = cycle~(440);
+wire quiet = *~(osc, 0.2);
+out[0] = quiet;

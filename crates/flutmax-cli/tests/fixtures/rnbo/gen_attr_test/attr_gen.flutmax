@@ -1,0 +1,5 @@
+in 0 (input): signal;
+out 0 (output): signal;
+
+wire result = *(input, 0.5);
+out[0] = result;

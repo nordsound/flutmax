@@ -1,6 +1,6 @@
 [package]
 name = "flutmax-cli"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/euskace/flutmax"
@@ -14,11 +14,14 @@ path = "src/main.rs"
 flutmax-parser = { version = "0.1.0", path = "../flutmax-parser" }
 flutmax-ast = { version = "0.1.0", path = "../flutmax-ast" }
 flutmax-sema = { version = "0.1.0", path = "../flutmax-sema" }
-flutmax-codegen = { version = "0.1.0", path = "../flutmax-codegen" }
+flutmax-codegen = { version = "0.1.1", path = "../flutmax-codegen" }
 flutmax-objdb = { version = "0.1.0", path = "../flutmax-objdb" }
 flutmax-validate = { version = "0.1.0", path = "../flutmax-validate" }
 flutmax-decompile = { version = "0.1.0", path = "../flutmax-decompile" }
+flutmax-sim = { version = "0.1.0", path = "../flutmax-sim" }
 serde_json = "1"
+rand = "0.8"
 
 [dev-dependencies]
 serde_json = "1"
+tempfile = "3"

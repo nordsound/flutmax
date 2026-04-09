@@ -1,0 +1,3 @@
+wire synth_a = rnbo~("voice_a");
+wire synth_b = rnbo~("voice_b");
+wire dac = ezdac~(synth_a.out[0], synth_b.out[0]);

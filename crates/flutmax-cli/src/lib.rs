@@ -1,8 +1,10 @@
+pub mod sim;
 pub mod validate;
 
 use flutmax_codegen::{
-    build_graph, build_graph_with_objdb, generate, generate_with_options, generate_with_ui,
-    BuildError, CodeFiles, CodegenError, GenerateOptions, UiData,
+    build_graph, build_graph_with_objdb, build_graph_without_triggers, generate,
+    generate_with_options, generate_with_ui, BuildError, CodeFiles, CodegenError, GenerateOptions,
+    UiData,
 };
 use flutmax_objdb::ObjectDb;
 use flutmax_parser::parse;
@@ -177,7 +179,9 @@ pub fn compile_gen(source: &str) -> Result<String, Box<dyn std::error::Error>> {
             .join("\n");
         return Err(msg.into());
     }
-    let graph = build_graph(&ast)?;
+    // gen~ executes synchronously per-sample, so skip auto-insertion of triggers.
+    // The trigger object does not exist in the gen~ domain.
+    let graph = build_graph_without_triggers(&ast)?;
     let opts = GenerateOptions {
         classnamespace: "dsp.gen".to_string(),
     };
