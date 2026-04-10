@@ -66,6 +66,6 @@ fn flutmax_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse, m)?)?;
     m.add_function(wrap_pyfunction!(compile_file, m)?)?;
     m.add_function(wrap_pyfunction!(decompile_file, m)?)?;
-    m.add("__version__", "0.1.1")?;
+    m.add("__version__", "0.1.2")?;
     Ok(())
 }
